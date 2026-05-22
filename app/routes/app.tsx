@@ -10,21 +10,8 @@ import { authenticate, PLAN_MONTHLY } from "../shopify.server";
 export const links = () => [{ rel: "stylesheet", href: polarisStyles }];
 
 export const loader = async ({ request }: LoaderFunctionArgs) => {
-  const { billing } = await authenticate.admin(request);
-
-  // BILLING_TEST=true on Railway during dev/testing phase (dev stores only support test subscriptions).
-  // Remove this env var before App Store submission to enable real billing.
-  const isTestBilling = process.env.BILLING_TEST === "true" || process.env.NODE_ENV !== "production";
-
-  await billing.require({
-    plans: [PLAN_MONTHLY],
-    isTest: isTestBilling,
-    onFailure: async () =>
-      billing.request({
-        plan: PLAN_MONTHLY,
-        isTest: isTestBilling,
-      }),
-  });
+  // DEBUG: temporarily skip billing to isolate 500 error source
+  await authenticate.admin(request);
 
   return json({ apiKey: process.env.SHOPIFY_API_KEY || "" });
 };
