@@ -1,6 +1,6 @@
 name = "RevRemind"
 client_id = "b340aead07c943941686c78ddeed26de"
-application_url = "https://semiconductor-remark-boot-cal.trycloudflare.com"
+application_url = "https://revremind-production.up.railway.app"
 embedded = true
 
 [build]
@@ -13,7 +13,7 @@ scopes = "read_products,read_orders,read_customers,write_customers"
 [auth]
 redirect_urls = [
   "https://revremind.com/auth/callback",
-  "https://semiconductor-remark-boot-cal.trycloudflare.com/auth/callback",
+  "https://revremind-production.up.railway.app/auth/callback",
   "http://localhost:3000/auth/callback"
 ]
 
