@@ -10,8 +10,30 @@ import { authenticate, PLAN_MONTHLY } from "../shopify.server";
 export const links = () => [{ rel: "stylesheet", href: polarisStyles }];
 
 export const loader = async ({ request }: LoaderFunctionArgs) => {
-  // DEBUG: temporarily skip billing to isolate 500 error source
-  await authenticate.admin(request);
+  try {
+    const { billing } = await authenticate.admin(request);
+
+    const isTestBilling = process.env.BILLING_TEST === "true" || process.env.NODE_ENV !== "production";
+
+    await billing.require({
+      plans: [PLAN_MONTHLY],
+      isTest: isTestBilling,
+      onFailure: async () =>
+        billing.request({
+          plan: PLAN_MONTHLY,
+          isTest: isTestBilling,
+        }),
+    });
+  } catch (error) {
+    // Log actual error to Railway for debugging, then re-throw
+    if (!(error instanceof Response)) {
+      console.error("[RevRemind] Loader error:", error instanceof Error ? error.message : String(error));
+      if (error instanceof Error && error.stack) {
+        console.error("[RevRemind] Stack:", error.stack);
+      }
+    }
+    throw error;
+  }
 
   return json({ apiKey: process.env.SHOPIFY_API_KEY || "" });
 };
