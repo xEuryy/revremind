@@ -10,9 +10,14 @@ import { authenticate, PLAN_MONTHLY } from "../shopify.server";
 export const links = () => [{ rel: "stylesheet", href: polarisStyles }];
 
 export const loader = async ({ request }: LoaderFunctionArgs) => {
-  try {
-    const { billing } = await authenticate.admin(request);
+  const { billing } = await authenticate.admin(request);
 
+  // SKIP_BILLING=true during dev/pre-launch -- Shopify blocks the Billing API
+  // for apps not yet publicly listed on the App Store.
+  // Remove this env var after App Store listing is approved.
+  const skipBilling = process.env.SKIP_BILLING === "true";
+
+  if (!skipBilling) {
     const isTestBilling = process.env.BILLING_TEST === "true" || process.env.NODE_ENV !== "production";
 
     await billing.require({
@@ -25,18 +30,6 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
           returnUrl: `${process.env.SHOPIFY_APP_URL}/app`,
         }),
     });
-  } catch (error) {
-    // Log actual error to Railway for debugging, then re-throw
-    if (!(error instanceof Response)) {
-      console.error("[RevRemind] Loader error:", error instanceof Error ? error.message : String(error));
-      if (error instanceof Error && (error as any).errorData) {
-        console.error("[RevRemind] Billing userErrors:", JSON.stringify((error as any).errorData));
-      }
-      if (error instanceof Error && error.stack) {
-        console.error("[RevRemind] Stack:", error.stack);
-      }
-    }
-    throw error;
   }
 
   return json({ apiKey: process.env.SHOPIFY_API_KEY || "" });
