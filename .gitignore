@@ -6,3 +6,12 @@ node_modules
 *.local
 .shopify
 prisma/migrations
+
+# Local test/debug scripts
+check-*.mjs
+check-*.js
+seed-*.mjs
+run-engine-local.mjs
+reset-reminder.mjs
+update-store.mjs
+test-sendgrid.mjs
