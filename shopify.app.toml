@@ -1,0 +1,33 @@
+name = "RevRemind"
+client_id = "b340aead07c943941686c78ddeed26de"
+application_url = "https://semiconductor-remark-boot-cal.trycloudflare.com"
+embedded = true
+
+[build]
+automatically_update_urls_on_dev = true
+dev_store_url = "revremind-dev.myshopify.com"
+
+[access_scopes]
+scopes = "read_products,read_orders,read_customers,write_customers"
+
+[auth]
+redirect_urls = [
+  "https://revremind.com/auth/callback",
+  "https://semiconductor-remark-boot-cal.trycloudflare.com/auth/callback",
+  "http://localhost:3000/auth/callback"
+]
+
+[webhooks]
+api_version = "2024-10"
+
+  [[webhooks.subscriptions]]
+  topics = ["app/uninstalled"]
+  uri = "/webhooks"
+
+  # orders/paid requires Protected Customer Data approval â€” enable after Partners approval
+  # [[webhooks.subscriptions]]
+  # topics = ["orders/paid"]
+  # uri = "/webhooks"
+
+[pos]
+embedded = false

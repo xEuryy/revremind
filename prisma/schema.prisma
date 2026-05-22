@@ -1,0 +1,107 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+// Shopify session storage — required by shopify-app-remix
+model Session {
+  id            String    @id
+  shop          String
+  state         String
+  isOnline      Boolean   @default(false)
+  scope         String?
+  expires       DateTime?
+  accessToken   String
+  userId        BigInt?
+  firstName     String?
+  lastName      String?
+  email         String?
+  accountOwner  Boolean   @default(false)
+  locale        String?
+  collaborator  Boolean?  @default(false)
+  emailVerified Boolean?  @default(false)
+}
+
+// Merchant store settings
+model Store {
+  id            String   @id @default(cuid())
+  shop          String   @unique
+  accessToken   String
+  installedAt   DateTime @default(now())
+  isActive      Boolean  @default(true)
+  planName      String?
+  trialEndsAt   DateTime?
+
+  vehicles      CustomerVehicle[]
+  reminders     Reminder[]
+  products      TrackedProduct[]
+}
+
+// Customer vehicle profiles
+model CustomerVehicle {
+  id             String   @id @default(cuid())
+  shop           String
+  customerId     String
+  customerEmail  String
+  customerName   String?
+  year           Int
+  make           String
+  model          String
+  trim           String?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  store          Store    @relation(fields: [shop], references: [shop])
+  reminders      Reminder[]
+
+  @@index([shop, customerId])
+}
+
+// Products we track for maintenance intervals
+model TrackedProduct {
+  id                String   @id @default(cuid())
+  shop              String
+  shopifyProductId  String
+  productTitle      String
+  category          String   // oil_filter, brake_pads, air_filter, wiper_blades, etc.
+  intervalDays      Int      // how many days until reminder
+  isActive          Boolean  @default(true)
+
+  store             Store    @relation(fields: [shop], references: [shop])
+
+  @@unique([shop, shopifyProductId])
+  @@index([shop])
+}
+
+// Scheduled and sent reminders
+model Reminder {
+  id              String         @id @default(cuid())
+  shop            String
+  vehicleId       String
+  customerId      String
+  customerEmail   String
+  productTitle    String
+  productCategory String
+  scheduledFor    DateTime
+  sentAt          DateTime?
+  status          ReminderStatus @default(PENDING)
+  channel         String         @default("email") // email or sms
+  messageBody     String?
+
+  store           Store          @relation(fields: [shop], references: [shop])
+  vehicle         CustomerVehicle @relation(fields: [vehicleId], references: [id])
+
+  @@index([shop, status, scheduledFor])
+}
+
+enum ReminderStatus {
+  PENDING
+  SENT
+  FAILED
+  SKIPPED
+}

@@ -1,0 +1,48 @@
+{
+  "name": "revremind",
+  "private": true,
+  "version": "1.0.0",
+  "scripts": {
+    "build": "remix vite:build",
+    "dev": "shopify app dev",
+    "lint": "eslint --cache --cache-location ./node_modules/.cache/eslint .",
+    "shopify": "shopify",
+    "start": "remix-serve ./build/server/index.js",
+    "docker-start": "npm run setup && npm run start",
+    "setup": "prisma generate && prisma migrate deploy",
+    "config:link": "shopify app config link",
+    "generate": "shopify app generate"
+  },
+  "type": "module",
+  "engines": {
+    "node": ">=18.20.0"
+  },
+  "dependencies": {
+    "@anthropic-ai/sdk": "^0.98.0",
+    "@prisma/client": "^5.19.1",
+    "@remix-run/node": "^2.12.1",
+    "@remix-run/react": "^2.12.1",
+    "@remix-run/serve": "^2.12.1",
+    "@sendgrid/mail": "^8.1.6",
+    "@shopify/app-bridge-react": "^4.1.6",
+    "@shopify/polaris": "^13.7.0",
+    "@shopify/shopify-app-remix": "^3.4.0",
+    "@shopify/shopify-app-session-storage-prisma": "^5.1.4",
+    "isbot": "^5.1.14",
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0",
+    "twilio": "^6.0.2"
+  },
+  "devDependencies": {
+    "@remix-run/dev": "^2.12.1",
+    "@types/react": "^18.2.55",
+    "@types/react-dom": "^18.2.19",
+    "eslint": "^8.57.0",
+    "eslint-config-prettier": "^9.1.0",
+    "prettier": "^3.2.4",
+    "prisma": "^5.19.1",
+    "typescript": "^5.2.2",
+    "vite": "^5.1.0",
+    "vite-tsconfig-paths": "^4.3.1"
+  }
+}

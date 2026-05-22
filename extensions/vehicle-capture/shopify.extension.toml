@@ -1,0 +1,11 @@
+api_version = "2025-07"
+
+[[extensions]]
+type = "ui_extension"
+name = "Vehicle Capture"
+handle = "vehicle-capture"
+uid = "92d7e609-d183-3a9e-0498-c5c8fbb06db1a4c56b6e"
+
+  [[extensions.targeting]]
+  module = "./src/Checkout.tsx"
+  target = "purchase.checkout.contact.render-after"
