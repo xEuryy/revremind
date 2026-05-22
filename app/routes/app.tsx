@@ -22,6 +22,7 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
         billing.request({
           plan: PLAN_MONTHLY,
           isTest: isTestBilling,
+          returnUrl: `${process.env.SHOPIFY_APP_URL}/app`,
         }),
     });
   } catch (error) {
