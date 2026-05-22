@@ -4,8 +4,8 @@ application_url = "https://revremind-production.up.railway.app"
 embedded = true
 
 [build]
-automatically_update_urls_on_dev = true
-dev_store_url = "revremind-dev.myshopify.com"
+automatically_update_urls_on_dev = false
+dev_store_url = "revremind-preview.myshopify.com"
 
 [access_scopes]
 scopes = "read_products,read_orders,read_customers,write_customers"

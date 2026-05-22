@@ -8,6 +8,7 @@ type OrderPayload = {
   customer?: {
     id: number;
     email: string;
+    phone?: string;
     first_name?: string;
     last_name?: string;
   };
@@ -60,6 +61,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
               shop,
               customerId: String(customer.id),
               customerEmail: customer.email,
+              customerPhone: customer.phone ?? null,
               customerName:
                 [customer.first_name, customer.last_name]
                   .filter(Boolean)
@@ -92,10 +94,11 @@ export const action = async ({ request }: ActionFunctionArgs) => {
             vehicleId: vehicle.id,
             customerId: String(customer.id),
             customerEmail: customer.email,
+            customerPhone: customer.phone ?? null,
             productTitle: tp.productTitle,
             productCategory: tp.category,
             scheduledFor: new Date(now.getTime() + tp.intervalDays * 86_400_000),
-            channel: "email",
+            channel: "email", // reminder engine upgrades to SMS at send time if store has smsEnabled + customer has phone
           })),
           skipDuplicates: true,
         });

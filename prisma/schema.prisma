@@ -37,6 +37,11 @@ model Store {
   planName      String?
   trialEndsAt   DateTime?
 
+  // Reminder settings
+  senderName    String?
+  senderEmail   String?
+  smsEnabled    Boolean  @default(false)
+
   vehicles      CustomerVehicle[]
   reminders     Reminder[]
   products      TrackedProduct[]
@@ -48,6 +53,7 @@ model CustomerVehicle {
   shop           String
   customerId     String
   customerEmail  String
+  customerPhone  String?
   customerName   String?
   year           Int
   make           String
@@ -85,6 +91,7 @@ model Reminder {
   vehicleId       String
   customerId      String
   customerEmail   String
+  customerPhone   String?
   productTitle    String
   productCategory String
   scheduledFor    DateTime

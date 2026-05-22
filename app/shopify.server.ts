@@ -2,10 +2,13 @@ import "@shopify/shopify-app-remix/adapters/node";
 import {
   ApiVersion,
   AppDistribution,
+  BillingInterval,
   shopifyApp,
 } from "@shopify/shopify-app-remix/server";
 import { PrismaSessionStorage } from "@shopify/shopify-app-session-storage-prisma";
 import { PrismaClient } from "@prisma/client";
+
+export const PLAN_MONTHLY = "RevRemind Monthly";
 
 const prisma = new PrismaClient();
 
@@ -20,6 +23,14 @@ const shopify = shopifyApp({
   distribution: AppDistribution.AppStore,
   future: {
     unstable_newEmbeddedAuthStrategy: false,
+  },
+  billing: {
+    [PLAN_MONTHLY]: {
+      amount: 49,
+      currencyCode: "USD",
+      interval: BillingInterval.Every30Days,
+      trialDays: 14,
+    },
   },
 });
 
