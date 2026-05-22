@@ -29,6 +29,9 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
     // Log actual error to Railway for debugging, then re-throw
     if (!(error instanceof Response)) {
       console.error("[RevRemind] Loader error:", error instanceof Error ? error.message : String(error));
+      if (error instanceof Error && (error as any).errorData) {
+        console.error("[RevRemind] Billing userErrors:", JSON.stringify((error as any).errorData));
+      }
       if (error instanceof Error && error.stack) {
         console.error("[RevRemind] Stack:", error.stack);
       }
