@@ -198,7 +198,7 @@ async function sendEmail(
   fromName: string,
   fromEmail: string
 ) {
-  getSendGrid().send({
+  await getSendGrid().send({
     to,
     from: { name: fromName, email: fromEmail },
     subject: message.subject,
