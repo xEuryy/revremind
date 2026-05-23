@@ -8,7 +8,10 @@ import {
 import { PrismaSessionStorage } from "@shopify/shopify-app-session-storage-prisma";
 import { PrismaClient } from "@prisma/client";
 
-export const PLAN_MONTHLY = "RevRemind Monthly";
+export const PLAN_STARTER = "RevRemind Starter";
+export const PLAN_PRO    = "RevRemind Pro";
+// Legacy name kept so existing subscribers are not affected
+export const PLAN_MONTHLY = PLAN_PRO;
 
 const prisma = new PrismaClient();
 
@@ -25,7 +28,13 @@ const shopify = shopifyApp({
     unstable_newEmbeddedAuthStrategy: false,
   },
   billing: {
-    [PLAN_MONTHLY]: {
+    [PLAN_STARTER]: {
+      amount: 29,
+      currencyCode: "USD",
+      interval: BillingInterval.Every30Days,
+      trialDays: 14,
+    },
+    [PLAN_PRO]: {
       amount: 49,
       currencyCode: "USD",
       interval: BillingInterval.Every30Days,

@@ -5,7 +5,7 @@ import { boundary } from "@shopify/shopify-app-remix/server";
 import { AppProvider } from "@shopify/shopify-app-remix/react";
 import { NavMenu } from "@shopify/app-bridge-react";
 import polarisStyles from "@shopify/polaris/build/esm/styles.css?url";
-import { authenticate, PLAN_MONTHLY } from "../shopify.server";
+import { authenticate, PLAN_STARTER, PLAN_PRO } from "../shopify.server";
 
 export const links = () => [{ rel: "stylesheet", href: polarisStyles }];
 
@@ -20,12 +20,13 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
   if (!skipBilling) {
     const isTestBilling = process.env.BILLING_TEST === "true" || process.env.NODE_ENV !== "production";
 
+    // Either Starter or Pro grants access
     await billing.require({
-      plans: [PLAN_MONTHLY],
+      plans: [PLAN_STARTER, PLAN_PRO],
       isTest: isTestBilling,
       onFailure: async () =>
         billing.request({
-          plan: PLAN_MONTHLY,
+          plan: PLAN_STARTER,
           isTest: isTestBilling,
           returnUrl: `${process.env.SHOPIFY_APP_URL}/app`,
         }),
