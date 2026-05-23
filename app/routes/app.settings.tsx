@@ -17,22 +17,14 @@ import {
   Box,
   Select,
 } from "@shopify/polaris";
-import { authenticate, PLAN_STARTER, PLAN_PRO } from "../shopify.server";
+import { authenticate } from "../shopify.server";
 import { prisma } from "../shopify.server";
 
 // ─── Loader ──────────────────────────────────────────────────────────────────
 
 export const loader = async ({ request }: LoaderFunctionArgs) => {
-  const { session, billing } = await authenticate.admin(request);
+  const { session } = await authenticate.admin(request);
   const { shop } = session;
-
-  const isTestBilling = process.env.BILLING_TEST === "true" || process.env.NODE_ENV !== "production";
-  const { appSubscriptions } = await billing.check({
-    plans: [PLAN_STARTER, PLAN_PRO],
-    isTest: isTestBilling,
-  });
-  const activePlan = appSubscriptions[0]?.name ?? null;
-  const isPro = activePlan === PLAN_PRO;
 
   const store = await prisma.store.findUnique({ where: { shop } });
 
@@ -41,40 +33,24 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
     senderName: store?.senderName ?? "",
     senderEmail: store?.senderEmail ?? "",
     smsEnabled: store?.smsEnabled ?? false,
-    isPro,
-    activePlan,
   });
 };
 
 // ─── Action ──────────────────────────────────────────────────────────────────
 
 export const action = async ({ request }: ActionFunctionArgs) => {
-  const { session, billing } = await authenticate.admin(request);
+  const { session } = await authenticate.admin(request);
   const { shop } = session;
 
   const formData = await request.formData();
   const senderName = (formData.get("senderName") as string)?.trim() ?? "";
   const senderEmail = (formData.get("senderEmail") as string)?.trim() ?? "";
-  const smsEnabledRaw = formData.get("smsEnabled") === "true";
+  const smsEnabled = formData.get("smsEnabled") === "true";
 
   // Basic email validation
   const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
   if (senderEmail && !emailRegex.test(senderEmail)) {
     return json({ success: false, error: "Sender email is not a valid email address." });
-  }
-
-  // SMS is a Pro-only feature — enforce server-side even if client sends true
-  let smsEnabled = smsEnabledRaw;
-  if (smsEnabledRaw) {
-    const isTestBilling = process.env.BILLING_TEST === "true" || process.env.NODE_ENV !== "production";
-    const { appSubscriptions } = await billing.check({
-      plans: [PLAN_STARTER, PLAN_PRO],
-      isTest: isTestBilling,
-    });
-    const isPro = appSubscriptions[0]?.name === PLAN_PRO;
-    if (!isPro) {
-      smsEnabled = false;
-    }
   }
 
   await prisma.store.update({
@@ -88,7 +64,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
 // ─── Component ───────────────────────────────────────────────────────────────
 
 export default function SettingsPage() {
-  const { senderName: initialName, senderEmail: initialEmail, smsEnabled: initialSms, isPro } =
+  const { senderName: initialName, senderEmail: initialEmail, smsEnabled: initialSms } =
     useLoaderData<typeof loader>();
   const actionData = useActionData<typeof action>();
   const navigation = useNavigation();
@@ -98,8 +74,7 @@ export default function SettingsPage() {
 
   const [senderName, setSenderName] = useState(initialName);
   const [senderEmail, setSenderEmail] = useState(initialEmail);
-  // If merchant is on Starter, SMS is always off in the UI regardless of DB value
-  const [smsEnabled, setSmsEnabled] = useState(isPro ? initialSms : false);
+  const [smsEnabled, setSmsEnabled] = useState(initialSms);
 
   const handleSave = useCallback(() => {
     const formData = new FormData();
@@ -173,39 +148,27 @@ export default function SettingsPage() {
               <BlockStack gap="400">
                 <InlineStack align="space-between" blockAlign="center">
                   <Text variant="headingMd" as="h2">Reminder Channels</Text>
-                  {isPro && smsEnabled ? (
+                  {smsEnabled ? (
                     <Badge tone="success">SMS Active</Badge>
                   ) : (
                     <Badge>Email Only</Badge>
                   )}
                 </InlineStack>
                 <Text variant="bodySm" as="p" tone="subdued">
-                  Email reminders are always included. SMS reminders are available on the Pro plan.
+                  Email reminders are always on. Enable SMS to also send text reminders to customers who provided a phone number at checkout.
                 </Text>
-
-                {!isPro ? (
-                  <Banner tone="info">
+                <Select
+                  label="Delivery method"
+                  options={smsOptions}
+                  value={String(smsEnabled)}
+                  onChange={(val) => setSmsEnabled(val === "true")}
+                />
+                {smsEnabled && (
+                  <Banner tone="warning">
                     <p>
-                      SMS reminders are a <strong>Pro plan</strong> feature. Upgrade to Pro ($49/mo) to send text message reminders to customers who provided a phone number.{" "}
-                      <a href="/app/billing">Upgrade now</a>
+                      SMS requires TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN, and TWILIO_PHONE_NUMBER set in your Railway environment variables. Reminders will fall back to email if these are missing.
                     </p>
                   </Banner>
-                ) : (
-                  <>
-                    <Select
-                      label="Delivery method"
-                      options={smsOptions}
-                      value={String(smsEnabled)}
-                      onChange={(val) => setSmsEnabled(val === "true")}
-                    />
-                    {smsEnabled && (
-                      <Banner tone="warning">
-                        <p>
-                          SMS requires TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN, and TWILIO_PHONE_NUMBER set in your Railway environment variables. Reminders will fall back to email if these are missing.
-                        </p>
-                      </Banner>
-                    )}
-                  </>
                 )}
               </BlockStack>
             </Card>
