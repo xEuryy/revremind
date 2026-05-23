@@ -24,10 +24,9 @@ api_version = "2024-10"
   topics = ["app/uninstalled"]
   uri = "/webhooks"
 
-  # orders/paid requires Protected Customer Data approval â€” enable after Partners approval
-  # [[webhooks.subscriptions]]
-  # topics = ["orders/paid"]
-  # uri = "/webhooks"
+  [[webhooks.subscriptions]]
+  topics = [“orders/paid”]
+  uri = “/webhooks”
 
 [pos]
 embedded = false
