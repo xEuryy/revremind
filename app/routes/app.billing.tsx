@@ -35,10 +35,11 @@ export const action = async ({ request }: ActionFunctionArgs) => {
   const intent = formData.get("intent");
 
   if (intent === "subscribe") {
+    const baseUrl = process.env.SHOPIFY_APP_URL ?? "https://revremind-production.up.railway.app";
     await billing.request({
       plan: PLAN_MONTHLY,
       isTest: process.env.NODE_ENV !== "production",
-      returnUrl: "/app/billing",
+      returnUrl: `${baseUrl}/app/billing`,
     });
   }
 

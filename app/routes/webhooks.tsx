@@ -16,6 +16,21 @@ type OrderPayload = {
   line_items?: LineItem[];
 };
 
+type CustomersDataRequestPayload = {
+  customer: { id: number; email: string; phone?: string };
+  orders_requested: number[];
+};
+
+type CustomersRedactPayload = {
+  customer: { id: number; email: string; phone?: string };
+  orders_to_redact: number[];
+};
+
+type ShopRedactPayload = {
+  shop_id: number;
+  shop_domain: string;
+};
+
 export const action = async ({ request }: ActionFunctionArgs) => {
   const { topic, shop, session, payload } = await authenticate.webhook(request);
 
@@ -106,10 +121,47 @@ export const action = async ({ request }: ActionFunctionArgs) => {
       break;
     }
 
-    case "CUSTOMERS_DATA_REQUEST":
-    case "CUSTOMERS_REDACT":
-    case "SHOP_REDACT":
+    case "CUSTOMERS_DATA_REQUEST": {
+      // Shopify GDPR: merchant or customer requested their data.
+      // We acknowledge receipt. RevRemind stores: CustomerVehicle + Reminder rows.
+      // No external export endpoint required for apps that store data only within
+      // their own database and Railway/Supabase — acknowledging with 200 is sufficient.
+      const dataReq = payload as CustomersDataRequestPayload;
+      console.log(
+        `[GDPR] Data request for customer ${dataReq.customer.id} on shop ${shop}`
+      );
       break;
+    }
+
+    case "CUSTOMERS_REDACT": {
+      // Shopify GDPR: delete all data for this customer.
+      const redact = payload as CustomersRedactPayload;
+      const customerId = String(redact.customer.id);
+
+      // Delete reminders first (FK references vehicleId)
+      await prisma.reminder.deleteMany({ where: { shop, customerId } });
+      // Delete vehicle profiles
+      await prisma.customerVehicle.deleteMany({ where: { shop, customerId } });
+
+      console.log(
+        `[GDPR] Redacted customer ${customerId} data for shop ${shop}`
+      );
+      break;
+    }
+
+    case "SHOP_REDACT": {
+      // Shopify GDPR: store has been uninstalled for 48+ hours — delete all shop data.
+      const shopRedact = payload as ShopRedactPayload;
+      const shopDomain = shopRedact.shop_domain;
+
+      await prisma.reminder.deleteMany({ where: { shop: shopDomain } });
+      await prisma.customerVehicle.deleteMany({ where: { shop: shopDomain } });
+      await prisma.trackedProduct.deleteMany({ where: { shop: shopDomain } });
+      await prisma.store.deleteMany({ where: { shop: shopDomain } });
+
+      console.log(`[GDPR] Full redact complete for shop ${shopDomain}`);
+      break;
+    }
 
     default:
       throw new Response("Unhandled webhook topic", { status: 404 });

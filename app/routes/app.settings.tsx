@@ -166,7 +166,7 @@ export default function SettingsPage() {
                 {smsEnabled && (
                   <Banner tone="warning">
                     <p>
-                      SMS requires TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN, and TWILIO_FROM_NUMBER set in your Railway environment variables. Reminders will fall back to email if these are missing.
+                      SMS requires TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN, and TWILIO_PHONE_NUMBER set in your Railway environment variables. Reminders will fall back to email if these are missing.
                     </p>
                   </Banner>
                 )}
@@ -212,7 +212,7 @@ export default function SettingsPage() {
                   <EnvVar name="SENDGRID_API_KEY" status="pending" />
                   <EnvVar name="TWILIO_ACCOUNT_SID" status={smsEnabled ? "pending" : "optional"} />
                   <EnvVar name="TWILIO_AUTH_TOKEN" status={smsEnabled ? "pending" : "optional"} />
-                  <EnvVar name="TWILIO_FROM_NUMBER" status={smsEnabled ? "pending" : "optional"} />
+                  <EnvVar name="TWILIO_PHONE_NUMBER" status={smsEnabled ? "pending" : "optional"} />
                   <EnvVar name="ANTHROPIC_API_KEY" status="pending" />
                   <EnvVar name="CRON_SECRET" status="pending" />
                 </BlockStack>

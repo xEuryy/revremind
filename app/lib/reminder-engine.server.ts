@@ -99,52 +99,6 @@ export async function processDueReminders() {
   }
 }
 
-// ─── Reminder scheduling ──────────────────────────────────────────────────────
-
-// Schedules reminders when a customer makes a purchase.
-// Used by the ORDERS_PAID webhook handler.
-export async function scheduleRemindersForOrder(
-  shop: string,
-  customerId: string,
-  customerEmail: string,
-  customerPhone: string | null,
-  lineItems: Array<{ productId: string; title: string }>
-) {
-  const vehicle = await prisma.customerVehicle.findFirst({
-    where: { shop, customerEmail },
-    orderBy: { createdAt: "desc" },
-  });
-
-  if (!vehicle) return;
-
-  for (const item of lineItems) {
-    const tracked = await prisma.trackedProduct.findUnique({
-      where: {
-        shop_shopifyProductId: { shop, shopifyProductId: item.productId },
-      },
-    });
-
-    if (!tracked || tracked.category === "skip") continue;
-
-    const scheduledFor = new Date();
-    scheduledFor.setDate(scheduledFor.getDate() + tracked.intervalDays);
-
-    await prisma.reminder.create({
-      data: {
-        shop,
-        vehicleId: vehicle.id,
-        customerId,
-        customerEmail,
-        customerPhone,
-        productTitle: item.title,
-        productCategory: tracked.category,
-        scheduledFor,
-        channel: "email",
-      },
-    });
-  }
-}
-
 // ─── AI message generation ────────────────────────────────────────────────────
 
 async function generateReminderMessage(reminder: {
