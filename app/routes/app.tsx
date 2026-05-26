@@ -18,19 +18,28 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
   const skipBilling = process.env.SKIP_BILLING === "true";
 
   if (!skipBilling) {
-    const isTestBilling = process.env.BILLING_TEST === "true" || process.env.NODE_ENV !== "production";
+    const isTestBilling =
+      process.env.BILLING_TEST === "true" ||
+      process.env.NODE_ENV !== "production";
 
-    // Either Starter or Pro grants access
-    await billing.require({
-      plans: [PLAN_PRO],
-      isTest: isTestBilling,
-      onFailure: async () =>
-        billing.request({
-          plan: PLAN_PRO,
-          isTest: isTestBilling,
-          returnUrl: `${process.env.SHOPIFY_APP_URL}/app`,
-        }),
-    });
+    try {
+      await billing.require({
+        plans: [PLAN_PRO],
+        isTest: isTestBilling,
+        onFailure: async () =>
+          billing.request({
+            plan: PLAN_PRO,
+            isTest: isTestBilling,
+            returnUrl: `${process.env.SHOPIFY_APP_URL}/app`,
+          }),
+      });
+    } catch (e) {
+      // Let redirects through (billing.request() throws a redirect Response)
+      if (e instanceof Response) throw e;
+      // If the Shopify billing API returns an unexpected error, log it and
+      // allow the app to load rather than crashing with "Application Error".
+      console.error("[billing] billing.require() failed:", e);
+    }
   }
 
   return json({ apiKey: process.env.SHOPIFY_API_KEY || "" });
