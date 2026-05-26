@@ -1,7 +1,7 @@
 import type { ActionFunctionArgs, LoaderFunctionArgs } from "@remix-run/node";
 import { json } from "@remix-run/node";
 import { useLoaderData, useActionData, useNavigation, useSubmit } from "@remix-run/react";
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect } from "react";
 import {
   Page,
   Layout,
@@ -53,9 +53,16 @@ export const action = async ({ request }: ActionFunctionArgs) => {
     return json({ success: false, error: "Sender email is not a valid email address." });
   }
 
-  await prisma.store.update({
+  await prisma.store.upsert({
     where: { shop },
-    data: { senderName, senderEmail, smsEnabled },
+    create: {
+      shop,
+      accessToken: session.accessToken,
+      senderName,
+      senderEmail,
+      smsEnabled,
+    },
+    update: { senderName, senderEmail, smsEnabled },
   });
 
   return json({ success: true, error: null });
@@ -75,6 +82,12 @@ export default function SettingsPage() {
   const [senderName, setSenderName] = useState(initialName);
   const [senderEmail, setSenderEmail] = useState(initialEmail);
   const [smsEnabled, setSmsEnabled] = useState(initialSms);
+  const [bannerVisible, setBannerVisible] = useState(false);
+
+  // Show the save-result banner whenever a new actionData arrives, then let user dismiss it
+  useEffect(() => {
+    if (actionData) setBannerVisible(true);
+  }, [actionData]);
 
   const handleSave = useCallback(() => {
     const formData = new FormData();
@@ -103,13 +116,13 @@ export default function SettingsPage() {
           <BlockStack gap="500">
 
             {/* Save result banner */}
-            {actionData?.success && (
-              <Banner tone="success" onDismiss={() => {}}>
+            {bannerVisible && actionData?.success && (
+              <Banner tone="success" onDismiss={() => setBannerVisible(false)}>
                 <p>Settings saved.</p>
               </Banner>
             )}
-            {actionData?.error && (
-              <Banner tone="critical" onDismiss={() => {}}>
+            {bannerVisible && actionData?.error && (
+              <Banner tone="critical" onDismiss={() => setBannerVisible(false)}>
                 <p>{actionData.error}</p>
               </Banner>
             )}

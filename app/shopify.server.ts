@@ -35,6 +35,25 @@ const shopify = shopifyApp({
       trialDays: 14,
     },
   },
+  hooks: {
+    afterAuth: async ({ session }) => {
+      // Create or update the Store record every time a merchant installs/reinstalls.
+      // Without this, any route that reads/writes the Store model will crash for
+      // new installs because the record does not yet exist.
+      await prisma.store.upsert({
+        where: { shop: session.shop },
+        create: {
+          shop: session.shop,
+          accessToken: session.accessToken,
+          isActive: true,
+        },
+        update: {
+          accessToken: session.accessToken,
+          isActive: true,
+        },
+      });
+    },
+  },
 });
 
 export default shopify;

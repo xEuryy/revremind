@@ -1,6 +1,6 @@
 import type { LoaderFunctionArgs } from "@remix-run/node";
 import { json } from "@remix-run/node";
-import { useLoaderData } from "@remix-run/react";
+import { useLoaderData, Link } from "@remix-run/react";
 import {
   Page,
   Layout,
@@ -133,17 +133,17 @@ export default function Dashboard() {
                 <BlockStack gap="200">
                   <Box>
                     <Text as="p" variant="bodyMd">
-                      <a href="/app/products">Categorize your products</a>
+                      <Link to="/app/products">Categorize your products</Link>
                     </Text>
                   </Box>
                   <Box>
                     <Text as="p" variant="bodyMd">
-                      <a href="/app/settings">Configure reminders</a>
+                      <Link to="/app/settings">Configure reminders</Link>
                     </Text>
                   </Box>
                   <Box>
                     <Text as="p" variant="bodyMd">
-                      <a href="/app/vehicles">View customer vehicles</a>
+                      <Link to="/app/vehicles">View customer vehicles</Link>
                     </Text>
                   </Box>
                 </BlockStack>
