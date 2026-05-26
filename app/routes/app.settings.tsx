@@ -187,10 +187,10 @@ export default function SettingsPage() {
                   value={String(smsEnabled)}
                   onChange={(val) => setSmsEnabled(val === "true")}
                 />
-                {smsEnabled && (
+                {smsEnabled && !(envStatus.twilioSid && envStatus.twilioToken && envStatus.twilioPhone) && (
                   <Banner tone="warning">
                     <p>
-                      SMS requires TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN, and TWILIO_PHONE_NUMBER set in your Railway environment variables. Reminders will fall back to email if these are missing.
+                      SMS is enabled but not yet fully configured. Reminders will fall back to email until setup is complete. Contact support if you need help.
                     </p>
                   </Banner>
                 )}
@@ -204,23 +204,8 @@ export default function SettingsPage() {
               <BlockStack gap="300">
                 <Text variant="headingMd" as="h2">Reminder Schedule</Text>
                 <Text variant="bodySm" as="p" tone="subdued">
-                  Reminders run once daily via an automated cron job. The cron endpoint is secured with a token and must be triggered by your Railway scheduler.
+                  RevRemind automatically checks for due reminders once per day and sends them on your behalf. No manual action is needed — reminders go out at the right time based on each product's maintenance interval.
                 </Text>
-                <Box
-                  background="bg-surface-secondary"
-                  padding="300"
-                  borderRadius="200"
-                >
-                  <BlockStack gap="100">
-                    <Text variant="bodySm" as="p" tone="subdued">Cron endpoint</Text>
-                    <Text variant="bodyMd" as="p" fontWeight="medium">
-                      POST /api/cron
-                    </Text>
-                    <Text variant="bodySm" as="p" tone="subdued">
-                      Header: Authorization: Bearer $CRON_SECRET
-                    </Text>
-                  </BlockStack>
-                </Box>
               </BlockStack>
             </Card>
 
