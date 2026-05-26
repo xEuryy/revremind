@@ -25,7 +25,7 @@ const shopify = shopifyApp({
   sessionStorage: new PrismaSessionStorage(prisma),
   distribution: AppDistribution.AppStore,
   future: {
-    unstable_newEmbeddedAuthStrategy: false,
+    unstable_newEmbeddedAuthStrategy: true,
   },
   billing: {
     [PLAN_PRO]: {
