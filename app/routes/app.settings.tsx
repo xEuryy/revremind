@@ -149,15 +149,13 @@ export default function SettingsPage() {
                   label="Sender name"
                   value={senderName}
                   onChange={setSenderName}
-                  placeholder="Mike's Auto Parts"
                   autoComplete="name"
-                  helpText="Appears as the From name in emails and SMS sign-off."
+                  helpText="The name customers see on reminder emails. Leave blank to use the default."
                 />
                 <TextField
                   label="Sender email"
                   value={senderEmail}
                   onChange={setSenderEmail}
-                  placeholder="example@gmail.com"
                   type="email"
                   autoComplete="email"
                   helpText="The email address customers see on reminder emails. Leave blank to use the default."
