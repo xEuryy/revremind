@@ -28,11 +28,22 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
 
   const store = await prisma.store.findUnique({ where: { shop } });
 
+  // Check env vars server-side — only pass booleans, never expose the values
+  const envStatus = {
+    sendgrid: !!process.env.SENDGRID_API_KEY,
+    anthropic: !!process.env.ANTHROPIC_API_KEY,
+    cronSecret: !!process.env.CRON_SECRET,
+    twilioSid: !!process.env.TWILIO_ACCOUNT_SID,
+    twilioToken: !!process.env.TWILIO_AUTH_TOKEN,
+    twilioPhone: !!process.env.TWILIO_PHONE_NUMBER,
+  };
+
   return json({
     shop,
     senderName: store?.senderName ?? "",
     senderEmail: store?.senderEmail ?? "",
     smsEnabled: store?.smsEnabled ?? false,
+    envStatus,
   });
 };
 
@@ -71,7 +82,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
 // ─── Component ───────────────────────────────────────────────────────────────
 
 export default function SettingsPage() {
-  const { senderName: initialName, senderEmail: initialEmail, smsEnabled: initialSms } =
+  const { senderName: initialName, senderEmail: initialEmail, smsEnabled: initialSms, envStatus } =
     useLoaderData<typeof loader>();
   const actionData = useActionData<typeof action>();
   const navigation = useNavigation();
@@ -220,14 +231,21 @@ export default function SettingsPage() {
           <BlockStack gap="400">
             <Card>
               <BlockStack gap="200">
-                <Text variant="headingMd" as="h2">Required env vars</Text>
+                <Text variant="headingMd" as="h2">Service Status</Text>
                 <BlockStack gap="100">
-                  <EnvVar name="SENDGRID_API_KEY" status="pending" />
-                  <EnvVar name="TWILIO_ACCOUNT_SID" status={smsEnabled ? "pending" : "optional"} />
-                  <EnvVar name="TWILIO_AUTH_TOKEN" status={smsEnabled ? "pending" : "optional"} />
-                  <EnvVar name="TWILIO_PHONE_NUMBER" status={smsEnabled ? "pending" : "optional"} />
-                  <EnvVar name="ANTHROPIC_API_KEY" status="pending" />
-                  <EnvVar name="CRON_SECRET" status="pending" />
+                  <EnvVar name="Email delivery" status={envStatus.sendgrid ? "set" : "pending"} />
+                  <EnvVar name="AI personalization" status={envStatus.anthropic ? "set" : "pending"} />
+                  <EnvVar name="Scheduled reminders" status={envStatus.cronSecret ? "set" : "pending"} />
+                  <EnvVar
+                    name="SMS delivery"
+                    status={
+                      envStatus.twilioSid && envStatus.twilioToken && envStatus.twilioPhone
+                        ? "set"
+                        : smsEnabled
+                        ? "pending"
+                        : "optional"
+                    }
+                  />
                 </BlockStack>
               </BlockStack>
             </Card>

@@ -41,11 +41,11 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
 
 function reminderRows(reminders: any[]) {
   return reminders.map((r) => [
-    r.customerEmail,
-    r.productTitle,
-    r.productCategory.replace(/_/g, " "),
-    r.channel.toUpperCase(),
-    new Date(r.scheduledFor).toLocaleDateString(),
+    r.customerEmail ?? "—",
+    r.productTitle ?? "—",
+    (r.productCategory ?? "").replace(/_/g, " "),
+    (r.channel ?? "email").toUpperCase(),
+    r.scheduledFor ? new Date(r.scheduledFor).toLocaleDateString() : "—",
   ]);
 }
 

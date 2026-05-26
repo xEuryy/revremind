@@ -17,7 +17,7 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
   const { session } = await authenticate.admin(request);
   const shop = session.shop;
 
-  const [vehicleCount, pendingReminders, sentThisMonth, store] =
+  const [vehicleCount, pendingReminders, sentThisMonth] =
     await Promise.all([
       prisma.customerVehicle.count({ where: { shop } }),
       prisma.reminder.count({ where: { shop, status: "PENDING" } }),
@@ -28,10 +28,9 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
           sentAt: { gte: new Date(new Date().setDate(1)) },
         },
       }),
-      prisma.store.findUnique({ where: { shop } }),
     ]);
 
-  return json({ vehicleCount, pendingReminders, sentThisMonth, store });
+  return json({ vehicleCount, pendingReminders, sentThisMonth });
 };
 
 export default function Dashboard() {

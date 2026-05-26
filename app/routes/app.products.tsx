@@ -13,6 +13,7 @@ import {
   Banner,
   Badge,
   InlineStack,
+  EmptyState,
 } from "@shopify/polaris";
 import { useState } from "react";
 import { authenticate, prisma } from "../shopify.server";
@@ -147,6 +148,28 @@ export default function Products() {
       ),
     ];
   });
+
+  if (shopifyProducts.length === 0) {
+    return (
+      <Page title="Product Categories">
+        <Layout>
+          <Layout.Section>
+            <Card>
+              <EmptyState
+                heading="No products found"
+                image="https://cdn.shopify.com/s/files/1/0262/4071/2726/files/emptystate-files.png"
+              >
+                <p>
+                  Add products to your Shopify store first, then come back here to
+                  categorize them for maintenance reminders.
+                </p>
+              </EmptyState>
+            </Card>
+          </Layout.Section>
+        </Layout>
+      </Page>
+    );
+  }
 
   return (
     <Page title="Product Categories">
