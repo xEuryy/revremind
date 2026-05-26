@@ -157,10 +157,10 @@ export default function SettingsPage() {
                   label="Sender email"
                   value={senderEmail}
                   onChange={setSenderEmail}
-                  placeholder="reminders@yourdomain.com"
+                  placeholder="example@gmail.com"
                   type="email"
                   autoComplete="email"
-                  helpText="Must match a verified SendGrid sender. Leave blank to use the default."
+                  helpText="The email address customers see on reminder emails. Leave blank to use the default."
                 />
               </BlockStack>
             </Card>
