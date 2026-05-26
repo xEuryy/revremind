@@ -36,7 +36,7 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
   } catch (e) {
     // Billing API unavailable — show page in default state
     console.error("[billing] billing.check() failed:", e);
-    return json({ hasActivePayment: false, subscriptionId: null, billingError: true });
+    return json({ hasActivePayment: false, subscriptionId: null, billingError: false });
   }
 };
 
@@ -101,13 +101,7 @@ export default function BillingPage() {
         <Layout.Section>
           <BlockStack gap="500">
 
-            {billingError && (
-              <Banner tone="warning">
-                <p>Unable to load subscription status right now. If this persists, try reinstalling the app.</p>
-              </Banner>
-            )}
-
-            {!billingError && hasActivePayment && (
+            {hasActivePayment && (
               <Banner tone="success">
                 <p>Your RevRemind subscription is active.</p>
               </Banner>
