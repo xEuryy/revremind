@@ -18,17 +18,26 @@ import { authenticate, PLAN_PRO } from "../shopify.server";
 
 export const loader = async ({ request }: LoaderFunctionArgs) => {
   const { billing } = await authenticate.admin(request);
-  const isTestBilling = process.env.BILLING_TEST === "true" || process.env.NODE_ENV !== "production";
+  const isTestBilling =
+    process.env.BILLING_TEST === "true" ||
+    process.env.NODE_ENV !== "production";
 
-  const { hasActivePayment, appSubscriptions } = await billing.check({
-    plans: [PLAN_PRO],
-    isTest: isTestBilling,
-  });
+  try {
+    const { hasActivePayment, appSubscriptions } = await billing.check({
+      plans: [PLAN_PRO],
+      isTest: isTestBilling,
+    });
 
-  return json({
-    hasActivePayment,
-    subscriptionId: appSubscriptions[0]?.id ?? null,
-  });
+    return json({
+      hasActivePayment,
+      subscriptionId: appSubscriptions[0]?.id ?? null,
+      billingError: false,
+    });
+  } catch (e) {
+    // Billing API unavailable — show page in default state
+    console.error("[billing] billing.check() failed:", e);
+    return json({ hasActivePayment: false, subscriptionId: null, billingError: true });
+  }
 };
 
 export const action = async ({ request }: ActionFunctionArgs) => {
@@ -39,24 +48,33 @@ export const action = async ({ request }: ActionFunctionArgs) => {
   const isTestBilling = process.env.BILLING_TEST === "true" || process.env.NODE_ENV !== "production";
 
   if (intent === "subscribe") {
-    await billing.request({
-      plan: PLAN_PRO,
-      isTest: isTestBilling,
-      returnUrl: `${baseUrl}/app/billing`,
-    });
+    try {
+      await billing.request({
+        plan: PLAN_PRO,
+        isTest: isTestBilling,
+        returnUrl: `${baseUrl}/app/billing`,
+      });
+    } catch (e) {
+      if (e instanceof Response) throw e; // let redirect through
+      console.error("[billing] billing.request() failed:", e);
+    }
   }
 
   if (intent === "cancel") {
-    const { appSubscriptions } = await billing.check({
-      plans: [PLAN_PRO],
-      isTest: isTestBilling,
-    });
-    if (appSubscriptions[0]) {
-      await billing.cancel({
-        subscriptionId: appSubscriptions[0].id,
+    try {
+      const { appSubscriptions } = await billing.check({
+        plans: [PLAN_PRO],
         isTest: isTestBilling,
-        prorate: true,
       });
+      if (appSubscriptions[0]) {
+        await billing.cancel({
+          subscriptionId: appSubscriptions[0].id,
+          isTest: isTestBilling,
+          prorate: true,
+        });
+      }
+    } catch (e) {
+      console.error("[billing] cancel failed:", e);
     }
   }
 
@@ -64,7 +82,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
 };
 
 export default function BillingPage() {
-  const { hasActivePayment, subscriptionId } = useLoaderData<typeof loader>();
+  const { hasActivePayment, subscriptionId, billingError } = useLoaderData<typeof loader>();
   const submit = useSubmit();
 
   const handleSubscribe = () => {
@@ -83,7 +101,13 @@ export default function BillingPage() {
         <Layout.Section>
           <BlockStack gap="500">
 
-            {hasActivePayment && (
+            {billingError && (
+              <Banner tone="warning">
+                <p>Unable to load subscription status right now. If this persists, try reinstalling the app.</p>
+              </Banner>
+            )}
+
+            {!billingError && hasActivePayment && (
               <Banner tone="success">
                 <p>Your RevRemind subscription is active.</p>
               </Banner>

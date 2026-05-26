@@ -41,22 +41,27 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
   const shop = session.shop;
 
   // Pull products from Shopify
-  const response = await admin.graphql(`
-    query {
-      products(first: 100) {
-        edges {
-          node {
-            id
-            title
-            status
+  let shopifyProducts: { id: string; title: string; status: string }[] = [];
+  try {
+    const response = await admin.graphql(`
+      query {
+        products(first: 100) {
+          edges {
+            node {
+              id
+              title
+              status
+            }
           }
         }
       }
-    }
-  `);
-
-  const data = await response.json();
-  const shopifyProducts = data.data.products.edges.map((e: any) => e.node);
+    `);
+    const data = await response.json();
+    shopifyProducts = (data?.data?.products?.edges ?? []).map((e: any) => e.node);
+  } catch (e) {
+    console.error("[products] GraphQL fetch failed:", e);
+    // shopifyProducts stays empty — EmptyState will render
+  }
 
   // Get already-categorized products
   const tracked = await prisma.trackedProduct.findMany({ where: { shop } });
