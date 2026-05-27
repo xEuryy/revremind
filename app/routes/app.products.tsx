@@ -57,11 +57,22 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
       shopifyProducts = data.data.products.edges.map((e: any) => e.node);
     }
   } catch (e: any) {
-    // The SDK throws a Response for auth redirects (bounce page token exchange).
-    // Re-throw it so the Shopify auth flow can complete — do NOT catch it as an error.
-    if (e instanceof Response) throw e;
-    fetchError = e?.message ?? String(e);
-    console.error("[products] fetch failed:", fetchError);
+    if (e instanceof Response) {
+      // SDK threw a Response — read the body to surface the real error message.
+      // Re-throw ONLY 3xx redirects (auth bounce page); catch 4xx/5xx as fetchError.
+      if (e.status >= 300 && e.status < 400) throw e;
+      try {
+        const body = await (e as Response).text();
+        fetchError = `Shopify API ${e.status}: ${body.slice(0, 500)}`;
+        console.error("[products] SDK Response:", e.status, body.slice(0, 300));
+      } catch {
+        fetchError = `Shopify API error: status ${e.status}`;
+        console.error("[products] SDK Response (unreadable):", e.status);
+      }
+    } else {
+      fetchError = e?.message ?? String(e);
+      console.error("[products] fetch failed:", fetchError);
+    }
   }
 
   // Get already-categorized products
