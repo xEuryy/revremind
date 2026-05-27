@@ -36,27 +36,108 @@ const CATEGORIES = [
   { label: "Not a maintenance item", value: "skip", days: 0 },
 ];
 
+/**
+ * Exchange the Shopify session token (id_token JWT) for a fresh expiring access token.
+ * This is required because the stored offline token may be a deprecated non-expiring
+ * shpat_ token that Shopify's Admin API now rejects with 403.
+ */
+async function exchangeForFreshToken(
+  request: Request,
+  shop: string
+): Promise<string | null> {
+  const url = new URL(request.url);
+  const idToken = url.searchParams.get("id_token");
+  if (!idToken) return null;
+  try {
+    const resp = await fetch(`https://${shop}/admin/oauth/access_token`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        client_id: process.env.SHOPIFY_API_KEY,
+        client_secret: process.env.SHOPIFY_API_SECRET,
+        grant_type: "urn:ietf:params:oauth:grant-type:token-exchange",
+        subject_token: idToken,
+        subject_token_type: "urn:shopify:params:oauth:token-type:session-token",
+        requested_token_type:
+          "urn:shopify:params:oauth:token-type:offline-access-token",
+      }),
+    });
+    if (!resp.ok) {
+      const err = await resp.text();
+      console.error("[products] token exchange failed:", resp.status, err.slice(0, 200));
+      return null;
+    }
+    const data = await resp.json();
+    return (data.access_token as string) ?? null;
+  } catch (e: any) {
+    console.error("[products] token exchange error:", e?.message);
+    return null;
+  }
+}
+
 export const loader = async ({ request }: LoaderFunctionArgs) => {
   const { session, admin } = await authenticate.admin(request);
   const shop = session.shop;
 
-  // Pull products from Shopify
+  // Pull products from Shopify using a fresh token when available.
+  // The stored offline session token may be a deprecated shpat_ token; exchanging
+  // the id_token from the URL gives us a valid expiring token for this request.
   let shopifyProducts: { id: string; title: string; status: string }[] = [];
   let fetchError: string | null = null;
   try {
-    const response = await admin.graphql(
-      `{ products(first: 100) { edges { node { id title status } } } }`
-    );
-    const data = await response.json();
+    const freshToken = await exchangeForFreshToken(request, shop);
+    let data: any;
+
+    if (freshToken) {
+      // Use fresh token directly via fetch — bypasses the stored deprecated token
+      const resp = await fetch(
+        `https://${shop}/admin/api/2024-10/graphql.json`,
+        {
+          method: "POST",
+          headers: {
+            "X-Shopify-Access-Token": freshToken,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            query: `{ products(first: 100) { edges { node { id title status } } } }`,
+          }),
+        }
+      );
+      if (!resp.ok) {
+        fetchError = `Shopify API returned ${resp.status}`;
+        console.error("[products] fresh-token fetch failed:", resp.status);
+      } else {
+        data = await resp.json();
+        // Persist fresh token so cron and other routes benefit too
+        if (!data?.errors) {
+          await prisma.session
+            .update({ where: { id: `offline_${shop}` }, data: { accessToken: freshToken } })
+            .catch(() => {});
+          await prisma.store
+            .update({ where: { shop }, data: { accessToken: freshToken } })
+            .catch(() => {});
+        }
+      }
+    } else {
+      // Fallback to the SDK admin client (may fail if stored token is deprecated)
+      const response = await admin.graphql(
+        `{ products(first: 100) { edges { node { id title status } } } }`
+      );
+      data = await response.json();
+    }
+
     if (data?.errors) {
       fetchError = JSON.stringify(data.errors);
       console.error("[products] GraphQL errors:", fetchError);
     }
-    shopifyProducts = (data?.data?.products?.edges ?? []).map((e: any) => e.node);
+    if (data?.data?.products) {
+      shopifyProducts = data.data.products.edges.map((e: any) => e.node);
+    }
   } catch (e: any) {
-    if (e instanceof Response) throw e;
+    // NEVER re-throw here — a 403 from admin.graphql() should be surfaced as
+    // fetchError in the UI, not returned as a raw HTTP 403 to the browser.
     fetchError = e?.message ?? String(e);
-    console.error("[products] GraphQL fetch failed:", fetchError);
+    console.error("[products] fetch failed:", fetchError);
   }
 
   // Get already-categorized products
