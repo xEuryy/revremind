@@ -58,7 +58,6 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
       }
     `);
     const data = await response.json();
-    console.log("[products] GraphQL response:", JSON.stringify(data).slice(0, 500));
     if (data?.errors) {
       fetchError = JSON.stringify(data.errors);
       console.error("[products] GraphQL errors:", fetchError);
