@@ -36,6 +36,39 @@ const CATEGORIES = [
   { label: "Not a maintenance item", value: "skip", days: 0 },
 ];
 
+// Exchange Shopify session token (id_token JWT) for a fresh API access token
+async function exchangeForFreshToken(request: Request, shop: string): Promise<string | null> {
+  const url = new URL(request.url);
+  const sessionToken = url.searchParams.get("id_token");
+  if (!sessionToken) return null;
+  try {
+    const resp = await fetch(`https://${shop}/admin/oauth/access_token`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        client_id: process.env.SHOPIFY_API_KEY,
+        client_secret: process.env.SHOPIFY_API_SECRET,
+        grant_type: "urn:ietf:params:oauth:grant-type:token-exchange",
+        subject_token: sessionToken,
+        subject_token_type: "urn:shopify:params:oauth:token-type:session-token",
+        requested_token_type: "urn:shopify:params:oauth:token-type:offline-access-token",
+      }),
+    });
+    if (!resp.ok) {
+      const err = await resp.text();
+      console.error("[products] token exchange failed:", resp.status, err.slice(0, 200));
+      return null;
+    }
+    const data = await resp.json();
+    const newToken = data.access_token as string;
+    console.log("[products] token exchange succeeded, new token prefix:", newToken?.slice(0, 12));
+    return newToken;
+  } catch (e: any) {
+    console.error("[products] token exchange error:", e?.message);
+    return null;
+  }
+}
+
 export const loader = async ({ request }: LoaderFunctionArgs) => {
   const { session, admin } = await authenticate.admin(request);
   const shop = session.shop;
@@ -44,27 +77,52 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
   let shopifyProducts: { id: string; title: string; status: string }[] = [];
   let fetchError: string | null = null;
   try {
-    const response = await admin.graphql(`
-      query {
-        products(first: 100) {
-          edges {
-            node {
-              id
-              title
-              status
-            }
-          }
+    // Try token exchange first (gets a fresh expiring token from the page's session JWT)
+    const freshToken = await exchangeForFreshToken(request, shop);
+    let data: any;
+
+    if (freshToken) {
+      // Use fresh token directly via REST-style GraphQL call
+      const resp = await fetch(
+        `https://${shop}/admin/api/2024-10/graphql.json`,
+        {
+          method: "POST",
+          headers: {
+            "X-Shopify-Access-Token": freshToken,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            query: `{ products(first: 100) { edges { node { id title status } } } }`,
+          }),
         }
+      );
+      data = await resp.json();
+      // Persist the fresh token so the cron job and other routes benefit too
+      if (!data?.errors && freshToken !== session.accessToken) {
+        await prisma.session.update({
+          where: { id: `offline_${shop}` },
+          data: { accessToken: freshToken },
+        }).catch(() => {});
+        await prisma.store.update({
+          where: { shop },
+          data: { accessToken: freshToken },
+        }).catch(() => {});
       }
-    `);
-    const data = await response.json();
+    } else {
+      // Fall back to SDK admin object
+      const response = await admin.graphql(
+        `{ products(first: 100) { edges { node { id title status } } } }`
+      );
+      data = await response.json();
+    }
+
     if (data?.errors) {
       fetchError = JSON.stringify(data.errors);
       console.error("[products] GraphQL errors:", fetchError);
     }
     shopifyProducts = (data?.data?.products?.edges ?? []).map((e: any) => e.node);
   } catch (e: any) {
-    if (e instanceof Response) throw e; // Re-throw auth redirects from SDK
+    if (e && typeof e === "object" && "status" in e && "headers" in e) throw e;
     fetchError = e?.message ?? String(e);
     console.error("[products] GraphQL fetch failed:", fetchError);
   }
