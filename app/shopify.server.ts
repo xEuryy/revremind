@@ -24,6 +24,7 @@ const shopify = shopifyApp({
   authPathPrefix: "/auth",
   sessionStorage: new PrismaSessionStorage(prisma),
   distribution: AppDistribution.AppStore,
+  useOnlineTokens: true,          // use non-deprecated online (user-scoped) tokens for Admin API calls
   future: {
     unstable_newEmbeddedAuthStrategy: true,
   },
@@ -40,15 +41,17 @@ const shopify = shopifyApp({
       // Create or update the Store record every time a merchant installs/reinstalls.
       // Without this, any route that reads/writes the Store model will crash for
       // new installs because the record does not yet exist.
+      // With useOnlineTokens:true, afterAuth receives the online session; we store
+      // its token so the record exists. Background-job token access handled separately.
       await prisma.store.upsert({
         where: { shop: session.shop },
         create: {
           shop: session.shop,
-          accessToken: session.accessToken,
+          accessToken: session.accessToken ?? "",
           isActive: true,
         },
         update: {
-          accessToken: session.accessToken,
+          accessToken: session.accessToken ?? "",
           isActive: true,
         },
       });
