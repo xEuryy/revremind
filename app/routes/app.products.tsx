@@ -42,6 +42,7 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
 
   // Pull products from Shopify
   let shopifyProducts: { id: string; title: string; status: string }[] = [];
+  let fetchError: string | null = null;
   try {
     const response = await admin.graphql(`
       query {
@@ -57,10 +58,15 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
       }
     `);
     const data = await response.json();
+    console.log("[products] GraphQL response:", JSON.stringify(data).slice(0, 500));
+    if (data?.errors) {
+      fetchError = JSON.stringify(data.errors);
+      console.error("[products] GraphQL errors:", fetchError);
+    }
     shopifyProducts = (data?.data?.products?.edges ?? []).map((e: any) => e.node);
-  } catch (e) {
-    console.error("[products] GraphQL fetch failed:", e);
-    // shopifyProducts stays empty — EmptyState will render
+  } catch (e: any) {
+    fetchError = e?.message ?? String(e);
+    console.error("[products] GraphQL fetch failed:", fetchError);
   }
 
   // Get already-categorized products
@@ -69,7 +75,7 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
     tracked.map((p) => [p.shopifyProductId, p])
   );
 
-  return json({ shopifyProducts, trackedMap });
+  return json({ shopifyProducts, trackedMap, fetchError });
 };
 
 export const action = async ({ request }: ActionFunctionArgs) => {
@@ -107,7 +113,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
 };
 
 export default function Products() {
-  const { shopifyProducts, trackedMap } = useLoaderData<typeof loader>();
+  const { shopifyProducts, trackedMap, fetchError } = useLoaderData<typeof loader>();
   const fetcher = useFetcher();
 
   const handleCategoryChange = (
@@ -158,6 +164,13 @@ export default function Products() {
     return (
       <Page title="Product Categories">
         <Layout>
+          {fetchError && (
+            <Layout.Section>
+              <Banner tone="critical" title="API error loading products">
+                <p>{fetchError}</p>
+              </Banner>
+            </Layout.Section>
+          )}
           <Layout.Section>
             <Card>
               <EmptyState
