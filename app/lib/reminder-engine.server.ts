@@ -77,7 +77,7 @@ export async function processDueReminders() {
           reminder.customerEmail,
           message,
           store?.senderName ?? "RevRemind",
-          store?.senderEmail ?? "reminders@revremind.com"
+          store?.senderEmail ?? "michael.d.eury@gmail.com"
         );
       }
 
@@ -209,7 +209,7 @@ export async function processPendingRemindersForShop(shop: string): Promise<numb
           reminder.customerEmail,
           message,
           store?.senderName ?? "RevRemind",
-          store?.senderEmail ?? "reminders@revremind.com"
+          store?.senderEmail ?? "michael.d.eury@gmail.com"
         );
       }
 
