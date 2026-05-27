@@ -34,8 +34,9 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
           }),
       });
     } catch (e) {
-      // Let redirects through (billing.request() throws a redirect Response)
-      if (e instanceof Response) throw e;
+      // Let redirects through (billing.request() throws a redirect Response).
+      // Use duck-type check because instanceof Response can fail across module boundaries.
+      if (e != null && typeof e === "object" && typeof (e as any).status === "number" && (e as any).headers != null) throw e;
       // If the Shopify billing API returns an unexpected error, log it and
       // allow the app to load rather than crashing with "Application Error".
       console.error("[billing] billing.require() failed:", e);
