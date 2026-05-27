@@ -16,6 +16,7 @@ redirect_urls = [
   "https://revremind-production.up.railway.app/auth/callback",
   "http://localhost:3000/auth/callback"
 ]
+shopify_managed_installation = true
 
 [webhooks]
 api_version = "2025-01"
