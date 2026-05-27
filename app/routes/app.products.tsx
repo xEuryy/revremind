@@ -64,6 +64,7 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
     }
     shopifyProducts = (data?.data?.products?.edges ?? []).map((e: any) => e.node);
   } catch (e: any) {
+    if (e instanceof Response) throw e; // Re-throw auth redirects from SDK
     fetchError = e?.message ?? String(e);
     console.error("[products] GraphQL fetch failed:", fetchError);
   }
