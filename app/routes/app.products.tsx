@@ -57,6 +57,9 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
       shopifyProducts = data.data.products.edges.map((e: any) => e.node);
     }
   } catch (e: any) {
+    // The SDK throws a Response for auth redirects (bounce page token exchange).
+    // Re-throw it so the Shopify auth flow can complete — do NOT catch it as an error.
+    if (e instanceof Response) throw e;
     fetchError = e?.message ?? String(e);
     console.error("[products] fetch failed:", fetchError);
   }
