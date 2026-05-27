@@ -1,6 +1,6 @@
-import type { LoaderFunctionArgs } from "@remix-run/node";
+import type { ActionFunctionArgs, LoaderFunctionArgs } from "@remix-run/node";
 import { json } from "@remix-run/node";
-import { useLoaderData } from "@remix-run/react";
+import { useLoaderData, useFetcher } from "@remix-run/react";
 import {
   Page,
   Layout,
@@ -10,9 +10,13 @@ import {
   DataTable,
   Badge,
   Tabs,
+  Button,
+  Banner,
+  InlineStack,
 } from "@shopify/polaris";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { authenticate, prisma } from "../shopify.server";
+import { processPendingRemindersForShop } from "../lib/reminder-engine.server";
 
 export const loader = async ({ request }: LoaderFunctionArgs) => {
   const { session } = await authenticate.admin(request);
@@ -39,6 +43,19 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
   return json({ pending, sent, failed });
 };
 
+export const action = async ({ request }: ActionFunctionArgs) => {
+  const { session } = await authenticate.admin(request);
+  const shop = session.shop;
+
+  try {
+    const sentCount = await processPendingRemindersForShop(shop);
+    return json({ ok: true, sent: sentCount, error: null });
+  } catch (err: any) {
+    console.error("[reminders] run_now failed:", err);
+    return json({ ok: false, sent: 0, error: err.message ?? "Unknown error" });
+  }
+};
+
 function reminderRows(reminders: any[]) {
   return reminders.map((r) => [
     r.customerEmail ?? "—",
@@ -51,7 +68,21 @@ function reminderRows(reminders: any[]) {
 
 export default function Reminders() {
   const { pending, sent, failed } = useLoaderData<typeof loader>();
+  const fetcher = useFetcher<typeof action>();
   const [selected, setSelected] = useState(0);
+  const [bannerVisible, setBannerVisible] = useState(false);
+
+  const isRunning = fetcher.state === "submitting";
+
+  useEffect(() => {
+    if (fetcher.data) {
+      setBannerVisible(true);
+      // If reminders were sent, switch to Sent tab
+      if (fetcher.data.ok && fetcher.data.sent > 0) {
+        setSelected(1);
+      }
+    }
+  }, [fetcher.data]);
 
   const tabs = [
     { id: "pending", content: `Pending (${pending.length})` },
@@ -62,52 +93,96 @@ export default function Reminders() {
   const headings = ["Customer", "Product", "Category", "Channel", "Scheduled"];
 
   return (
-    <Page title="Reminders">
+    <Page
+      title="Reminders"
+      primaryAction={
+        pending.length > 0
+          ? {
+              content: "Send pending reminders now",
+              loading: isRunning,
+              onAction: () => fetcher.submit({}, { method: "POST" }),
+            }
+          : undefined
+      }
+    >
       <Layout>
         <Layout.Section>
-          <Card>
-            <Tabs tabs={tabs} selected={selected} onSelect={setSelected}>
-              <BlockStack gap="400">
-                {selected === 0 && (
-                  <DataTable
-                    columnContentTypes={["text", "text", "text", "text", "text"]}
-                    headings={headings}
-                    rows={reminderRows(pending)}
-                    emptyState={
-                      <Text as="p" variant="bodyMd" tone="subdued">
-                        No pending reminders. They will appear here once customers
-                        register vehicles and make purchases.
-                      </Text>
-                    }
-                  />
-                )}
-                {selected === 1 && (
-                  <DataTable
-                    columnContentTypes={["text", "text", "text", "text", "text"]}
-                    headings={headings}
-                    rows={reminderRows(sent)}
-                    emptyState={
-                      <Text as="p" variant="bodyMd" tone="subdued">
-                        No reminders sent yet.
-                      </Text>
-                    }
-                  />
-                )}
-                {selected === 2 && (
-                  <DataTable
-                    columnContentTypes={["text", "text", "text", "text", "text"]}
-                    headings={headings}
-                    rows={reminderRows(failed)}
-                    emptyState={
-                      <Text as="p" variant="bodyMd" tone="subdued">
-                        No failed reminders.
-                      </Text>
-                    }
-                  />
-                )}
-              </BlockStack>
-            </Tabs>
-          </Card>
+          <BlockStack gap="400">
+
+            {bannerVisible && fetcher.data?.ok && fetcher.data.sent > 0 && (
+              <Banner
+                tone="success"
+                onDismiss={() => setBannerVisible(false)}
+              >
+                <p>
+                  {fetcher.data.sent} reminder{fetcher.data.sent !== 1 ? "s" : ""} sent successfully.
+                </p>
+              </Banner>
+            )}
+
+            {bannerVisible && fetcher.data?.ok && fetcher.data.sent === 0 && (
+              <Banner
+                tone="info"
+                onDismiss={() => setBannerVisible(false)}
+              >
+                <p>No pending reminders to send.</p>
+              </Banner>
+            )}
+
+            {bannerVisible && fetcher.data && !fetcher.data.ok && (
+              <Banner
+                tone="critical"
+                onDismiss={() => setBannerVisible(false)}
+              >
+                <p>Could not send reminders: {fetcher.data.error}</p>
+              </Banner>
+            )}
+
+            <Card>
+              <Tabs tabs={tabs} selected={selected} onSelect={setSelected}>
+                <BlockStack gap="400">
+                  {selected === 0 && (
+                    <DataTable
+                      columnContentTypes={["text", "text", "text", "text", "text"]}
+                      headings={headings}
+                      rows={reminderRows(pending)}
+                      emptyState={
+                        <Text as="p" variant="bodyMd" tone="subdued">
+                          No pending reminders. They will appear here once customers
+                          register vehicles and make purchases.
+                        </Text>
+                      }
+                    />
+                  )}
+                  {selected === 1 && (
+                    <DataTable
+                      columnContentTypes={["text", "text", "text", "text", "text"]}
+                      headings={headings}
+                      rows={reminderRows(sent)}
+                      emptyState={
+                        <Text as="p" variant="bodyMd" tone="subdued">
+                          No reminders sent yet.
+                        </Text>
+                      }
+                    />
+                  )}
+                  {selected === 2 && (
+                    <DataTable
+                      columnContentTypes={["text", "text", "text", "text", "text"]}
+                      headings={headings}
+                      rows={reminderRows(failed)}
+                      emptyState={
+                        <Text as="p" variant="bodyMd" tone="subdued">
+                          No failed reminders.
+                        </Text>
+                      }
+                    />
+                  )}
+                </BlockStack>
+              </Tabs>
+            </Card>
+
+          </BlockStack>
         </Layout.Section>
       </Layout>
     </Page>

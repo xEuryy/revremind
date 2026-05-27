@@ -2,6 +2,14 @@ import type { ActionFunctionArgs } from "@remix-run/node";
 import { json } from "@remix-run/node";
 import { processDueReminders } from "../lib/reminder-engine.server";
 
+// GET — return a clear 405 instead of a Remix server error
+export const loader = async () => {
+  return json(
+    { error: "Method not allowed. This endpoint accepts POST requests only." },
+    { status: 405 }
+  );
+};
+
 // Called daily by Railway cron job
 // Secured by a shared secret token
 export const action = async ({ request }: ActionFunctionArgs) => {

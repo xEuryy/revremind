@@ -172,6 +172,65 @@ async function sendSMS(to: string, body: string) {
   });
 }
 
+// ─── Manual send (used by "Send pending reminders now" on Reminders page) ─────
+// Processes ALL pending reminders for a specific shop, regardless of scheduledFor.
+// Used when a merchant wants to send reminders immediately rather than waiting
+// for the daily cron.
+
+export async function processPendingRemindersForShop(shop: string): Promise<number> {
+  const now = new Date();
+
+  const pending = await prisma.reminder.findMany({
+    where: { shop, status: "PENDING" },
+    include: { vehicle: true },
+    take: 100,
+  });
+
+  let sent = 0;
+
+  for (const reminder of pending) {
+    try {
+      const store = await prisma.store.findUnique({
+        where: { shop },
+        select: { senderName: true, senderEmail: true, smsEnabled: true },
+      });
+
+      const useSms =
+        store?.smsEnabled &&
+        reminder.customerPhone &&
+        hasTwilioCreds();
+
+      const message = await generateReminderMessage(reminder);
+
+      if (useSms) {
+        await sendSMS(reminder.customerPhone!, message.text);
+      } else {
+        await sendEmail(
+          reminder.customerEmail,
+          message,
+          store?.senderName ?? "RevRemind",
+          store?.senderEmail ?? "reminders@revremind.com"
+        );
+      }
+
+      await prisma.reminder.update({
+        where: { id: reminder.id },
+        data: { status: "SENT", sentAt: now, messageBody: message.text },
+      });
+
+      sent++;
+    } catch (error) {
+      console.error(`Failed to send reminder ${reminder.id}:`, error);
+      await prisma.reminder.update({
+        where: { id: reminder.id },
+        data: { status: "FAILED" },
+      });
+    }
+  }
+
+  return sent;
+}
+
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
 function hasTwilioCreds(): boolean {
