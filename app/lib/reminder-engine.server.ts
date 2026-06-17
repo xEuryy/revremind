@@ -135,7 +135,11 @@ Output only the message body, no subject line.`,
   });
 
   const text =
-    response.content[0].type === "text" ? response.content[0].text : "";
+    response.content[0]?.type === "text" ? response.content[0].text.trim() : "";
+
+  if (!text) {
+    throw new Error("AI message generation returned empty content");
+  }
 
   return {
     subject: `Time to check your ${vehicleStr}'s ${categoryLabel}`,
@@ -177,8 +181,16 @@ async function sendSMS(to: string, body: string) {
 // Used when a merchant wants to send reminders immediately rather than waiting
 // for the daily cron.
 
-export async function processPendingRemindersForShop(shop: string): Promise<number> {
+export async function processPendingRemindersForShop(
+  shop: string
+): Promise<{ sent: number; failed: number; firstError: string | null }> {
   const now = new Date();
+
+  // Store settings are the same for every reminder in this shop — load once.
+  const store = await prisma.store.findUnique({
+    where: { shop },
+    select: { senderName: true, senderEmail: true, smsEnabled: true },
+  });
 
   const pending = await prisma.reminder.findMany({
     where: { shop, status: "PENDING" },
@@ -187,14 +199,11 @@ export async function processPendingRemindersForShop(shop: string): Promise<numb
   });
 
   let sent = 0;
+  let failed = 0;
+  let firstError: string | null = null;
 
   for (const reminder of pending) {
     try {
-      const store = await prisma.store.findUnique({
-        where: { shop },
-        select: { senderName: true, senderEmail: true, smsEnabled: true },
-      });
-
       const useSms =
         store?.smsEnabled &&
         reminder.customerPhone &&
@@ -220,6 +229,9 @@ export async function processPendingRemindersForShop(shop: string): Promise<numb
 
       sent++;
     } catch (error) {
+      failed++;
+      const msg = error instanceof Error ? error.message : String(error);
+      if (!firstError) firstError = msg;
       console.error(`Failed to send reminder ${reminder.id}:`, error);
       await prisma.reminder.update({
         where: { id: reminder.id },
@@ -228,7 +240,7 @@ export async function processPendingRemindersForShop(shop: string): Promise<numb
     }
   }
 
-  return sent;
+  return { sent, failed, firstError };
 }
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────

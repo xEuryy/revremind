@@ -48,11 +48,16 @@ export const action = async ({ request }: ActionFunctionArgs) => {
   const shop = session.shop;
 
   try {
-    const sentCount = await processPendingRemindersForShop(shop);
-    return json({ ok: true, sent: sentCount, error: null });
+    const result = await processPendingRemindersForShop(shop);
+    return json({
+      ok: true,
+      sent: result.sent,
+      failed: result.failed,
+      error: result.firstError,
+    });
   } catch (err: any) {
     console.error("[reminders] run_now failed:", err);
-    return json({ ok: false, sent: 0, error: err.message ?? "Unknown error" });
+    return json({ ok: false, sent: 0, failed: 0, error: err.message ?? "Unknown error" });
   }
 };
 
@@ -77,9 +82,11 @@ export default function Reminders() {
   useEffect(() => {
     if (fetcher.data) {
       setBannerVisible(true);
-      // If reminders were sent, switch to Sent tab
-      if (fetcher.data.ok && fetcher.data.sent > 0) {
+      // Jump to the tab that shows the result: Sent if any went out, else Failed.
+      if (fetcher.data.sent > 0) {
         setSelected(1);
+      } else if (fetcher.data.failed && fetcher.data.failed > 0) {
+        setSelected(2);
       }
     }
   }, [fetcher.data]);
@@ -115,12 +122,15 @@ export default function Reminders() {
                 onDismiss={() => setBannerVisible(false)}
               >
                 <p>
-                  {fetcher.data.sent} reminder{fetcher.data.sent !== 1 ? "s" : ""} sent successfully.
+                  {fetcher.data.sent} reminder{fetcher.data.sent !== 1 ? "s" : ""} sent successfully
+                  {fetcher.data.failed && fetcher.data.failed > 0
+                    ? `. ${fetcher.data.failed} could not be sent: ${fetcher.data.error}`
+                    : "."}
                 </p>
               </Banner>
             )}
 
-            {bannerVisible && fetcher.data?.ok && fetcher.data.sent === 0 && (
+            {bannerVisible && fetcher.data?.ok && fetcher.data.sent === 0 && fetcher.data.failed === 0 && (
               <Banner
                 tone="info"
                 onDismiss={() => setBannerVisible(false)}
@@ -129,12 +139,12 @@ export default function Reminders() {
               </Banner>
             )}
 
-            {bannerVisible && fetcher.data && !fetcher.data.ok && (
+            {bannerVisible && fetcher.data && (!fetcher.data.ok || (fetcher.data.sent === 0 && fetcher.data.failed > 0)) && (
               <Banner
                 tone="critical"
                 onDismiss={() => setBannerVisible(false)}
               >
-                <p>Could not send reminders: {fetcher.data.error}</p>
+                <p>Could not send reminders: {fetcher.data.error ?? "Unknown error"}</p>
               </Banner>
             )}
 
