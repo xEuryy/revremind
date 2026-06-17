@@ -83,8 +83,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
         throw e;
       }
       console.error("[billing] billing.request() failed:", e);
-      const detail = e instanceof Error ? e.message : String(e);
-      return json({ ok: false, error: `DIAG isTest=${isTestBilling}: ${detail}` });
+      return json({ ok: false, error: "Could not start the subscription. Please try again, or contact support if the problem persists." });
     }
   }
 
