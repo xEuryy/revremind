@@ -1,6 +1,7 @@
 import type { ActionFunctionArgs, LoaderFunctionArgs } from "@remix-run/node";
 import { json } from "@remix-run/node";
-import { useLoaderData, useSubmit } from "@remix-run/react";
+import { useLoaderData, useFetcher } from "@remix-run/react";
+import { useEffect } from "react";
 import {
   Page,
   Layout,
@@ -55,8 +56,17 @@ export const action = async ({ request }: ActionFunctionArgs) => {
         returnUrl: `${baseUrl}/app/billing`,
       });
     } catch (e) {
-      if (e instanceof Response) throw e; // let redirect through
+      // billing.request throws a redirect Response whose Location is Shopify's
+      // charge-approval URL. Inside the embedded admin iframe that page cannot
+      // load (it refuses framing), so following the redirect here does nothing.
+      // Hand the URL back to the client to open at the top level instead.
+      if (e instanceof Response) {
+        const confirmationUrl = e.headers.get("Location");
+        if (confirmationUrl) return json({ confirmationUrl });
+        throw e;
+      }
       console.error("[billing] billing.request() failed:", e);
+      return json({ ok: false, error: "Could not start the subscription. Please try again." });
     }
   }
 
@@ -83,15 +93,24 @@ export const action = async ({ request }: ActionFunctionArgs) => {
 
 export default function BillingPage() {
   const { hasActivePayment, subscriptionId, billingError } = useLoaderData<typeof loader>();
-  const submit = useSubmit();
+  const fetcher = useFetcher<typeof action>();
+  const isWorking = fetcher.state !== "idle";
+
+  useEffect(() => {
+    const url = (fetcher.data as any)?.confirmationUrl;
+    if (url) {
+      // Break out of the embedded admin iframe to Shopify's charge approval page.
+      window.open(url, "_top");
+    }
+  }, [fetcher.data]);
 
   const handleSubscribe = () => {
-    submit({ intent: "subscribe" }, { method: "post" });
+    fetcher.submit({ intent: "subscribe" }, { method: "post" });
   };
 
   const handleCancel = () => {
     if (confirm("Cancel your RevRemind subscription? You will lose access immediately.")) {
-      submit({ intent: "cancel" }, { method: "post" });
+      fetcher.submit({ intent: "cancel" }, { method: "post" });
     }
   };
 
@@ -136,9 +155,15 @@ export default function BillingPage() {
                 </BlockStack>
 
                 {!hasActivePayment && (
-                  <Button variant="primary" onClick={handleSubscribe}>
+                  <Button variant="primary" onClick={handleSubscribe} loading={isWorking}>
                     Start Free Trial
                   </Button>
+                )}
+
+                {(fetcher.data as any)?.error && (
+                  <Banner tone="critical">
+                    <p>{(fetcher.data as any).error}</p>
+                  </Banner>
                 )}
 
                 {hasActivePayment && (
