@@ -76,8 +76,8 @@ export async function processDueReminders() {
         await sendEmail(
           reminder.customerEmail,
           message,
-          store?.senderName ?? "RevRemind",
-          store?.senderEmail ?? "michael.d.eury@gmail.com"
+          resolveSenderName(store),
+          resolveSenderEmail(store)
         );
       }
 
@@ -217,8 +217,8 @@ export async function processPendingRemindersForShop(
         await sendEmail(
           reminder.customerEmail,
           message,
-          store?.senderName ?? "RevRemind",
-          store?.senderEmail ?? "michael.d.eury@gmail.com"
+          resolveSenderName(store),
+          resolveSenderEmail(store)
         );
       }
 
@@ -251,4 +251,19 @@ function hasTwilioCreds(): boolean {
     process.env.TWILIO_AUTH_TOKEN &&
     process.env.TWILIO_PHONE_NUMBER
   );
+}
+
+// Sender identity fallbacks. NOTE: use `||` not `??` — the Settings page stores
+// blank fields as "" (empty string), and `??` only catches null/undefined, so an
+// empty stored value must still fall back to the verified default. A blank "from"
+// address makes SendGrid reject the send with 400 Bad Request.
+const DEFAULT_SENDER_NAME = "RevRemind";
+const DEFAULT_SENDER_EMAIL = "michael.d.eury@gmail.com";
+
+function resolveSenderName(store: { senderName: string | null } | null): string {
+  return store?.senderName?.trim() || DEFAULT_SENDER_NAME;
+}
+
+function resolveSenderEmail(store: { senderEmail: string | null } | null): string {
+  return store?.senderEmail?.trim() || DEFAULT_SENDER_EMAIL;
 }

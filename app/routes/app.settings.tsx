@@ -54,8 +54,10 @@ export const action = async ({ request }: ActionFunctionArgs) => {
   const { shop } = session;
 
   const formData = await request.formData();
-  const senderName = (formData.get("senderName") as string)?.trim() ?? "";
-  const senderEmail = (formData.get("senderEmail") as string)?.trim() ?? "";
+  // Store blank fields as null (not ""), so the reminder engine's default-sender
+  // fallback fires correctly. An empty-string sender makes SendGrid reject sends.
+  const senderName = ((formData.get("senderName") as string) ?? "").trim() || null;
+  const senderEmail = ((formData.get("senderEmail") as string) ?? "").trim() || null;
   const smsEnabled = formData.get("smsEnabled") === "true";
 
   // Basic email validation
