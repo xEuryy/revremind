@@ -1,7 +1,6 @@
-import type { ActionFunctionArgs, LoaderFunctionArgs } from "@remix-run/node";
+import type { LoaderFunctionArgs } from "@remix-run/node";
 import { json } from "@remix-run/node";
-import { useLoaderData, useFetcher } from "@remix-run/react";
-import { useEffect } from "react";
+import { useLoaderData } from "@remix-run/react";
 import {
   Page,
   Layout,
@@ -11,16 +10,19 @@ import {
   BlockStack,
   InlineStack,
   Badge,
-  Banner,
-  Box,
   Divider,
 } from "@shopify/polaris";
 import { authenticate, PLAN_PRO } from "../shopify.server";
 
-// Shopify only allows TEST charges on development stores. Real merchant stores
-// take live charges. NODE_ENV can't tell them apart (it's "production" on the
-// server for every store), so ask Shopify whether this specific shop is a
-// development store and bill accordingly. BILLING_TEST forces test mode.
+// RevRemind uses Shopify Managed Pricing: merchants choose, start the free
+// trial, and manage/cancel their plan on Shopify's hosted pricing page. The app
+// only reads subscription status; it does NOT call the Billing API directly
+// (managed pricing and billing.request are mutually exclusive).
+const APP_HANDLE = "revremind";
+
+// Shopify only allows test charges on development stores; partnerDevelopment
+// tells us which kind of store this is so billing.check matches the right
+// (test vs live) subscription.
 async function resolveIsTest(admin: any): Promise<boolean> {
   if (process.env.BILLING_TEST === "true") return true;
   try {
@@ -30,105 +32,37 @@ async function resolveIsTest(admin: any): Promise<boolean> {
     );
     const body = await resp.json();
     return Boolean(body?.data?.shop?.plan?.partnerDevelopment);
-  } catch (e) {
-    console.error("[billing] shop plan lookup failed; defaulting isTest=false:", e);
+  } catch {
     return false;
   }
 }
 
 export const loader = async ({ request }: LoaderFunctionArgs) => {
-  const { billing, admin } = await authenticate.admin(request);
-  const isTestBilling = await resolveIsTest(admin);
+  const { billing, admin, session } = await authenticate.admin(request);
+  const storeHandle = session.shop.replace(/\.myshopify\.com$/, "");
+  const managedPricingUrl = `https://admin.shopify.com/store/${storeHandle}/charges/${APP_HANDLE}/pricing_plans`;
 
+  let hasActivePayment = false;
   try {
-    const { hasActivePayment, appSubscriptions } = await billing.check({
-      plans: [PLAN_PRO],
-      isTest: isTestBilling,
-    });
-
-    return json({
-      hasActivePayment,
-      subscriptionId: appSubscriptions[0]?.id ?? null,
-      billingError: false,
-    });
+    const isTest = await resolveIsTest(admin);
+    const res = await billing.check({ plans: [PLAN_PRO], isTest });
+    hasActivePayment = res.hasActivePayment;
   } catch (e) {
-    // Billing API unavailable — show page in default state
+    // If the status check fails, show the default (no active plan) state — the
+    // merchant can always see their real status on Shopify's pricing page.
     console.error("[billing] billing.check() failed:", e);
-    return json({ hasActivePayment: false, subscriptionId: null, billingError: false });
-  }
-};
-
-export const action = async ({ request }: ActionFunctionArgs) => {
-  const { billing, admin } = await authenticate.admin(request);
-  const formData = await request.formData();
-  const intent = formData.get("intent") as string;
-  const baseUrl = process.env.SHOPIFY_APP_URL ?? "https://revremind-production.up.railway.app";
-  const isTestBilling = await resolveIsTest(admin);
-
-  if (intent === "subscribe") {
-    try {
-      await billing.request({
-        plan: PLAN_PRO,
-        isTest: isTestBilling,
-        returnUrl: `${baseUrl}/app/billing`,
-      });
-    } catch (e) {
-      // billing.request throws a redirect Response whose Location is Shopify's
-      // charge-approval URL. Inside the embedded admin iframe that page cannot
-      // load (it refuses framing), so following the redirect here does nothing.
-      // Hand the URL back to the client to open at the top level instead.
-      if (e instanceof Response) {
-        const confirmationUrl = e.headers.get("Location");
-        if (confirmationUrl) return json({ confirmationUrl });
-        throw e;
-      }
-      console.error("[billing] billing.request() failed:", e);
-      return json({ ok: false, error: "Could not start the subscription. Please try again, or contact support if the problem persists." });
-    }
   }
 
-  if (intent === "cancel") {
-    try {
-      const { appSubscriptions } = await billing.check({
-        plans: [PLAN_PRO],
-        isTest: isTestBilling,
-      });
-      if (appSubscriptions[0]) {
-        await billing.cancel({
-          subscriptionId: appSubscriptions[0].id,
-          isTest: isTestBilling,
-          prorate: true,
-        });
-      }
-    } catch (e) {
-      console.error("[billing] cancel failed:", e);
-    }
-  }
-
-  return json({ ok: true });
+  return json({ hasActivePayment, managedPricingUrl });
 };
 
 export default function BillingPage() {
-  const { hasActivePayment, subscriptionId, billingError } = useLoaderData<typeof loader>();
-  const fetcher = useFetcher<typeof action>();
-  const isWorking = fetcher.state !== "idle";
+  const { hasActivePayment, managedPricingUrl } = useLoaderData<typeof loader>();
 
-  useEffect(() => {
-    const url = (fetcher.data as any)?.confirmationUrl;
-    if (url) {
-      // Break out of the embedded admin iframe to Shopify's charge approval page.
-      window.open(url, "_top");
-    }
-  }, [fetcher.data]);
-
-  const handleSubscribe = () => {
-    fetcher.submit({ intent: "subscribe" }, { method: "post" });
-  };
-
-  const handleCancel = () => {
-    if (confirm("Cancel your RevRemind subscription? You will lose access immediately.")) {
-      fetcher.submit({ intent: "cancel" }, { method: "post" });
-    }
+  // Open Shopify's hosted pricing page at the top level (it cannot load inside
+  // the embedded admin iframe).
+  const goToPlans = () => {
+    window.open(managedPricingUrl, "_top");
   };
 
   return (
@@ -136,13 +70,6 @@ export default function BillingPage() {
       <Layout>
         <Layout.Section>
           <BlockStack gap="500">
-
-            {hasActivePayment && (
-              <Banner tone="success">
-                <p>Your RevRemind subscription is active.</p>
-              </Banner>
-            )}
-
             <Card>
               <BlockStack gap="400">
                 <InlineStack align="space-between" blockAlign="center">
@@ -154,8 +81,7 @@ export default function BillingPage() {
                   </BlockStack>
                   {hasActivePayment
                     ? <Badge tone="success">Active</Badge>
-                    : <Badge>14-day free trial</Badge>
-                  }
+                    : <Badge>14-day free trial</Badge>}
                 </InlineStack>
 
                 <Divider />
@@ -171,34 +97,13 @@ export default function BillingPage() {
                   <Text variant="bodySm" as="p">14-day free trial</Text>
                 </BlockStack>
 
-                {!hasActivePayment && (
-                  <Button variant="primary" onClick={handleSubscribe} loading={isWorking}>
-                    Start Free Trial
-                  </Button>
-                )}
-
-                {(fetcher.data as any)?.error && (
-                  <Banner tone="critical">
-                    <p>{(fetcher.data as any).error}</p>
-                  </Banner>
-                )}
-
-                {hasActivePayment && (
-                  <Box paddingBlockStart="200">
-                    <Button tone="critical" onClick={handleCancel}>
-                      Cancel Subscription
-                    </Button>
-                  </Box>
+                {hasActivePayment ? (
+                  <Button onClick={goToPlans}>Manage plan</Button>
+                ) : (
+                  <Button variant="primary" onClick={goToPlans}>Start free trial</Button>
                 )}
               </BlockStack>
             </Card>
-
-            {subscriptionId && (
-              <Text variant="bodySm" as="p" tone="subdued">
-                Subscription ID: {subscriptionId}
-              </Text>
-            )}
-
           </BlockStack>
         </Layout.Section>
 
