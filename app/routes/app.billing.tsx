@@ -66,7 +66,8 @@ export const action = async ({ request }: ActionFunctionArgs) => {
         throw e;
       }
       console.error("[billing] billing.request() failed:", e);
-      return json({ ok: false, error: "Could not start the subscription. Please try again." });
+      const detail = e instanceof Error ? e.message : String(e);
+      return json({ ok: false, error: `DIAG: ${detail}` });
     }
   }
 
