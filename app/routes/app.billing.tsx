@@ -17,11 +17,28 @@ import {
 } from "@shopify/polaris";
 import { authenticate, PLAN_PRO } from "../shopify.server";
 
+// Shopify only allows TEST charges on development stores. Real merchant stores
+// take live charges. NODE_ENV can't tell them apart (it's "production" on the
+// server for every store), so ask Shopify whether this specific shop is a
+// development store and bill accordingly. BILLING_TEST forces test mode.
+async function resolveIsTest(admin: any): Promise<boolean> {
+  if (process.env.BILLING_TEST === "true") return true;
+  try {
+    const resp = await admin.graphql(
+      `#graphql
+      query { shop { plan { partnerDevelopment } } }`
+    );
+    const body = await resp.json();
+    return Boolean(body?.data?.shop?.plan?.partnerDevelopment);
+  } catch (e) {
+    console.error("[billing] shop plan lookup failed; defaulting isTest=false:", e);
+    return false;
+  }
+}
+
 export const loader = async ({ request }: LoaderFunctionArgs) => {
-  const { billing } = await authenticate.admin(request);
-  const isTestBilling =
-    process.env.BILLING_TEST === "true" ||
-    process.env.NODE_ENV !== "production";
+  const { billing, admin } = await authenticate.admin(request);
+  const isTestBilling = await resolveIsTest(admin);
 
   try {
     const { hasActivePayment, appSubscriptions } = await billing.check({
@@ -42,11 +59,11 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
 };
 
 export const action = async ({ request }: ActionFunctionArgs) => {
-  const { billing } = await authenticate.admin(request);
+  const { billing, admin } = await authenticate.admin(request);
   const formData = await request.formData();
   const intent = formData.get("intent") as string;
   const baseUrl = process.env.SHOPIFY_APP_URL ?? "https://revremind-production.up.railway.app";
-  const isTestBilling = process.env.BILLING_TEST === "true" || process.env.NODE_ENV !== "production";
+  const isTestBilling = await resolveIsTest(admin);
 
   if (intent === "subscribe") {
     try {
@@ -66,8 +83,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
         throw e;
       }
       console.error("[billing] billing.request() failed:", e);
-      const detail = e instanceof Error ? e.message : String(e);
-      return json({ ok: false, error: `DIAG: ${detail}` });
+      return json({ ok: false, error: "Could not start the subscription. Please try again, or contact support if the problem persists." });
     }
   }
 
