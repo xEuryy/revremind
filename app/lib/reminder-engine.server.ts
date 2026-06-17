@@ -258,7 +258,7 @@ function hasTwilioCreds(): boolean {
 // empty stored value must still fall back to the verified default. A blank "from"
 // address makes SendGrid reject the send with 400 Bad Request.
 const DEFAULT_SENDER_NAME = "RevRemind";
-const DEFAULT_SENDER_EMAIL = "michael.d.eury@gmail.com";
+const DEFAULT_SENDER_EMAIL = "reminders@rev-remind.com";
 
 function resolveSenderName(store: { senderName: string | null } | null): string {
   return store?.senderName?.trim() || DEFAULT_SENDER_NAME;
