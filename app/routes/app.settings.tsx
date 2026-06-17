@@ -204,7 +204,7 @@ export default function SettingsPage() {
               <BlockStack gap="300">
                 <Text variant="headingMd" as="h2">Reminder Schedule</Text>
                 <Text variant="bodySm" as="p" tone="subdued">
-                  RevRemind automatically checks for due reminders once per day and sends them on your behalf. No manual action is needed — reminders go out at the right time based on each product's maintenance interval.
+                  RevRemind automatically checks for due reminders once per day and sends them on your behalf. No manual action is needed. Reminders go out at the right time based on each product's maintenance interval.
                 </Text>
               </BlockStack>
             </Card>

@@ -38,7 +38,7 @@ export default function SetupCheckout() {
               Add Vehicle Capture to Checkout
             </Text>
             <Text as="p" variant="bodyMd">
-              1. Click the button below — opens Checkout Settings.
+              1. Click the button below to open Checkout Settings.
             </Text>
             <Text as="p" variant="bodyMd">
               2. Click <strong>Customize</strong> on the checkout.

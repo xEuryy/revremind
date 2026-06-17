@@ -112,8 +112,8 @@ export default function Dashboard() {
                     2. RevRemind maps their purchase to a maintenance interval
                   </Text>
                   <Text as="p" variant="bodyMd">
-                    3. Automated reminders go out at the right time — oil
-                    filters at 90 days, brake pads at 12 months, etc.
+                    3. Automated reminders go out at the right time. Oil
+                    filters at 90 days, brake pads at 12 months, and so on.
                   </Text>
                   <Text as="p" variant="bodyMd">
                     4. Customers come back and buy again
