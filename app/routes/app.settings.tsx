@@ -145,22 +145,22 @@ export default function SettingsPage() {
               <BlockStack gap="400">
                 <Text variant="headingMd" as="h2">Sender Identity</Text>
                 <Text variant="bodySm" as="p" tone="subdued">
-                  This is the name and email address your customers see on maintenance reminder emails. Use your store or business name.
+                  Reminder emails are sent from RevRemind's verified address (reminders@rev-remind.com) so they always deliver. Set your business name below to brand them, and add a reply-to address so customer replies reach you.
                 </Text>
                 <TextField
                   label="Sender name"
                   value={senderName}
                   onChange={setSenderName}
                   autoComplete="name"
-                  helpText="The name customers see on reminder emails. Leave blank to use the default."
+                  helpText="The business name customers see on reminder emails. Leave blank to use the default."
                 />
                 <TextField
-                  label="Sender email"
+                  label="Reply-to email"
                   value={senderEmail}
                   onChange={setSenderEmail}
                   type="email"
                   autoComplete="email"
-                  helpText="The email address customers see on reminder emails. Leave blank to use the default."
+                  helpText="Where customer replies are sent. Leave blank to use the default. Emails are always sent from reminders@rev-remind.com."
                 />
               </BlockStack>
             </Card>

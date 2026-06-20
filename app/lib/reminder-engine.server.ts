@@ -77,7 +77,7 @@ export async function processDueReminders() {
           reminder.customerEmail,
           message,
           resolveSenderName(store),
-          resolveSenderEmail(store)
+          resolveReplyTo(store)
         );
       }
 
@@ -154,11 +154,18 @@ async function sendEmail(
   to: string,
   message: { subject: string; text: string; html: string },
   fromName: string,
-  fromEmail: string
+  replyToEmail: string | null
 ) {
+  // Always send FROM our authenticated domain. SendGrid only accepts a `from`
+  // address on a domain we have authenticated (rev-remind.com) or a verified
+  // single sender; any other address is rejected with 403 and the reminder
+  // fails. A merchant's own email must therefore NEVER be the `from` address.
+  // Their brand still shows via the from name, and their email is set as
+  // reply-to so customer replies reach them directly.
   await getSendGrid().send({
     to,
-    from: { name: fromName, email: fromEmail },
+    from: { name: fromName, email: DEFAULT_SENDER_EMAIL },
+    ...(replyToEmail ? { replyTo: { email: replyToEmail, name: fromName } } : {}),
     subject: message.subject,
     text: message.text,
     html: message.html,
@@ -218,7 +225,7 @@ export async function processPendingRemindersForShop(
           reminder.customerEmail,
           message,
           resolveSenderName(store),
-          resolveSenderEmail(store)
+          resolveReplyTo(store)
         );
       }
 
@@ -253,10 +260,9 @@ function hasTwilioCreds(): boolean {
   );
 }
 
-// Sender identity fallbacks. NOTE: use `||` not `??` — the Settings page stores
-// blank fields as "" (empty string), and `??` only catches null/undefined, so an
-// empty stored value must still fall back to the verified default. A blank "from"
-// address makes SendGrid reject the send with 400 Bad Request.
+// The `from` address is ALWAYS our authenticated domain — it is never derived
+// from merchant input, so SendGrid can never reject it. The merchant's stored
+// "sender email" is used only as reply-to (see resolveReplyTo).
 const DEFAULT_SENDER_NAME = "RevRemind";
 const DEFAULT_SENDER_EMAIL = "reminders@rev-remind.com";
 
@@ -264,6 +270,8 @@ function resolveSenderName(store: { senderName: string | null } | null): string 
   return store?.senderName?.trim() || DEFAULT_SENDER_NAME;
 }
 
-function resolveSenderEmail(store: { senderEmail: string | null } | null): string {
-  return store?.senderEmail?.trim() || DEFAULT_SENDER_EMAIL;
+// Merchant's chosen email becomes the reply-to so customer replies reach them.
+// Returns null when unset/blank, in which case replies go to our from address.
+function resolveReplyTo(store: { senderEmail: string | null } | null): string | null {
+  return store?.senderEmail?.trim() || null;
 }
