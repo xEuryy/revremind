@@ -23,19 +23,30 @@ const YEARS: { value: string; label: string }[] = [
   }),
 ];
 
-const MAKES: { value: string; label: string }[] = [
+const CAR_MAKES = [
+  "Acura", "Alfa Romeo", "Audi", "BMW", "Buick", "Cadillac",
+  "Chevrolet", "Chrysler", "Dodge", "Ford", "Genesis", "GMC",
+  "Honda", "Hyundai", "Infiniti", "Jaguar", "Jeep", "Kia",
+  "Land Rover", "Lexus", "Lincoln", "Mazda", "Mercedes-Benz",
+  "MINI", "Mitsubishi", "Nissan", "Porsche", "Ram", "Subaru",
+  "Tesla", "Toyota", "Volkswagen", "Volvo",
+];
+
+const MOTO_MAKES = [
+  "Aprilia", "Can-Am", "Ducati", "Harley-Davidson", "Husqvarna",
+  "Indian Motorcycle", "Kawasaki", "KTM", "Moto Guzzi", "Polaris",
+  "Royal Enfield", "Suzuki", "Triumph", "Vespa", "Yamaha",
+];
+
+// Grouped with non-selectable section headers so cars/trucks and
+// motorcycles/powersports are clearly separated in the dropdown.
+const MAKES: { value: string; label: string; disabled?: boolean }[] = [
   { value: "", label: "Select make" },
-  ...[
-    "Acura", "Alfa Romeo", "Aprilia", "Audi", "BMW", "Buick",
-    "Cadillac", "Can-Am", "Chevrolet", "Chrysler", "Dodge", "Ducati",
-    "Ford", "Genesis", "GMC", "Harley-Davidson", "Honda", "Husqvarna",
-    "Hyundai", "Indian Motorcycle", "Infiniti", "Jaguar", "Jeep",
-    "Kawasaki", "Kia", "KTM", "Land Rover", "Lexus", "Lincoln",
-    "Mazda", "Mercedes-Benz", "MINI", "Mitsubishi", "Moto Guzzi",
-    "Nissan", "Polaris", "Porsche", "Ram", "Royal Enfield", "Subaru",
-    "Suzuki", "Tesla", "Toyota", "Triumph", "Vespa", "Volkswagen",
-    "Volvo", "Yamaha", "Other",
-  ].map((m) => ({ value: m, label: m })),
+  { value: "__hdr_cars", label: "Cars & Trucks", disabled: true },
+  ...CAR_MAKES.map((m) => ({ value: m, label: m })),
+  { value: "__hdr_moto", label: "Motorcycles & Powersports", disabled: true },
+  ...MOTO_MAKES.map((m) => ({ value: m, label: m })),
+  { value: "Other", label: "Other" },
 ];
 
 const MODELS: Record<string, string[]> = {
