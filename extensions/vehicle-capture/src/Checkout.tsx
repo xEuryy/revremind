@@ -26,12 +26,15 @@ const YEARS: { value: string; label: string }[] = [
 const MAKES: { value: string; label: string }[] = [
   { value: "", label: "Select make" },
   ...[
-    "Acura", "Alfa Romeo", "Audi", "BMW", "Buick", "Cadillac",
-    "Chevrolet", "Chrysler", "Dodge", "Ford", "Genesis", "GMC",
-    "Honda", "Hyundai", "Infiniti", "Jaguar", "Jeep", "Kia",
-    "Land Rover", "Lexus", "Lincoln", "Mazda", "Mercedes-Benz",
-    "MINI", "Mitsubishi", "Nissan", "Porsche", "Ram", "Subaru",
-    "Tesla", "Toyota", "Volkswagen", "Volvo", "Other",
+    "Acura", "Alfa Romeo", "Aprilia", "Audi", "BMW", "Buick",
+    "Cadillac", "Can-Am", "Chevrolet", "Chrysler", "Dodge", "Ducati",
+    "Ford", "Genesis", "GMC", "Harley-Davidson", "Honda", "Husqvarna",
+    "Hyundai", "Indian Motorcycle", "Infiniti", "Jaguar", "Jeep",
+    "Kawasaki", "Kia", "KTM", "Land Rover", "Lexus", "Lincoln",
+    "Mazda", "Mercedes-Benz", "MINI", "Mitsubishi", "Moto Guzzi",
+    "Nissan", "Polaris", "Porsche", "Ram", "Royal Enfield", "Subaru",
+    "Suzuki", "Tesla", "Toyota", "Triumph", "Vespa", "Volkswagen",
+    "Volvo", "Yamaha", "Other",
   ].map((m) => ({ value: m, label: m })),
 ];
 
@@ -187,7 +190,11 @@ function VehicleCapture() {
 
   const selectedMake = get("_vehicle_make");
   const modelOptions = getModelOptions(selectedMake);
-  const useModelDropdown = selectedMake !== "" && selectedMake !== "Other";
+  // Show the model dropdown only when we have a model list for this make.
+  // Makes without a list (e.g. "Other" and the motorcycle/powersports makes,
+  // which have no model data) fall back to the free-text Model field, so the
+  // dropdown can never render empty.
+  const useModelDropdown = modelOptions.length > 0;
 
   return (
     <BlockStack spacing="tight">
@@ -222,7 +229,7 @@ function VehicleCapture() {
       ) : (
         <TextField
           label="Model"
-          placeholder="e.g. Camry, F-150, Civic"
+          placeholder="e.g. Camry, F-150, Street Glide"
           value={get("_vehicle_model")}
           onChange={(v) => set("_vehicle_model", v)}
         />
