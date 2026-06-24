@@ -90,7 +90,6 @@ export default function BillingPage() {
                   <Text variant="bodySm" as="p">Everything included:</Text>
                   <Text variant="bodySm" as="p">Vehicle year/make/model capture at checkout</Text>
                   <Text variant="bodySm" as="p">Automated maintenance reminder emails</Text>
-                  <Text variant="bodySm" as="p">SMS reminders for customers who provided a phone number</Text>
                   <Text variant="bodySm" as="p">AI-personalized message content</Text>
                   <Text variant="bodySm" as="p">Unlimited vehicle profiles</Text>
                   <Text variant="bodySm" as="p">Full merchant dashboard</Text>
@@ -113,7 +112,6 @@ export default function BillingPage() {
               <Text variant="headingMd" as="h2">What you get</Text>
               <BlockStack gap="100">
                 <Text variant="bodySm" as="p">Email reminders</Text>
-                <Text variant="bodySm" as="p">SMS reminders</Text>
                 <Text variant="bodySm" as="p">AI-personalized messages</Text>
                 <Text variant="bodySm" as="p">Vehicle capture at checkout</Text>
                 <Text variant="bodySm" as="p">Full dashboard</Text>

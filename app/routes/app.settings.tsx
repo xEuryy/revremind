@@ -58,7 +58,8 @@ export const action = async ({ request }: ActionFunctionArgs) => {
   // fallback fires correctly. An empty-string sender makes SendGrid reject sends.
   const senderName = ((formData.get("senderName") as string) ?? "").trim() || null;
   const senderEmail = ((formData.get("senderEmail") as string) ?? "").trim() || null;
-  const smsEnabled = formData.get("smsEnabled") === "true";
+  // SMS is not offered yet (Twilio not provisioned for production). Always off.
+  const smsEnabled = false;
 
   // Basic email validation
   const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -84,7 +85,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
 // ─── Component ───────────────────────────────────────────────────────────────
 
 export default function SettingsPage() {
-  const { senderName: initialName, senderEmail: initialEmail, smsEnabled: initialSms, envStatus } =
+  const { senderName: initialName, senderEmail: initialEmail, envStatus } =
     useLoaderData<typeof loader>();
   const actionData = useActionData<typeof action>();
   const navigation = useNavigation();
@@ -94,7 +95,6 @@ export default function SettingsPage() {
 
   const [senderName, setSenderName] = useState(initialName);
   const [senderEmail, setSenderEmail] = useState(initialEmail);
-  const [smsEnabled, setSmsEnabled] = useState(initialSms);
   const [bannerVisible, setBannerVisible] = useState(false);
 
   // Show the save-result banner whenever a new actionData arrives, then let user dismiss it
@@ -106,14 +106,8 @@ export default function SettingsPage() {
     const formData = new FormData();
     formData.append("senderName", senderName);
     formData.append("senderEmail", senderEmail);
-    formData.append("smsEnabled", String(smsEnabled));
     submit(formData, { method: "post" });
-  }, [senderName, senderEmail, smsEnabled, submit]);
-
-  const smsOptions = [
-    { label: "Email only", value: "false" },
-    { label: "Email + SMS", value: "true" },
-  ];
+  }, [senderName, senderEmail, submit]);
 
   return (
     <Page
@@ -167,38 +161,6 @@ export default function SettingsPage() {
 
             <Divider />
 
-            {/* Reminder channels */}
-            <Card>
-              <BlockStack gap="400">
-                <InlineStack align="space-between" blockAlign="center">
-                  <Text variant="headingMd" as="h2">Reminder Channels</Text>
-                  {smsEnabled ? (
-                    <Badge tone="success">SMS Active</Badge>
-                  ) : (
-                    <Badge>Email Only</Badge>
-                  )}
-                </InlineStack>
-                <Text variant="bodySm" as="p" tone="subdued">
-                  Email reminders are always on. Enable SMS to also send text reminders to customers who provided a phone number at checkout.
-                </Text>
-                <Select
-                  label="Delivery method"
-                  options={smsOptions}
-                  value={String(smsEnabled)}
-                  onChange={(val) => setSmsEnabled(val === "true")}
-                />
-                {smsEnabled && !(envStatus.twilioSid && envStatus.twilioToken && envStatus.twilioPhone) && (
-                  <Banner tone="warning">
-                    <p>
-                      SMS is enabled but not yet fully configured. Reminders will fall back to email until setup is complete. Contact support if you need help.
-                    </p>
-                  </Banner>
-                )}
-              </BlockStack>
-            </Card>
-
-            <Divider />
-
             {/* Cron status (informational) */}
             <Card>
               <BlockStack gap="300">
@@ -221,16 +183,6 @@ export default function SettingsPage() {
                   <EnvVar name="Email delivery" status={envStatus.sendgrid ? "set" : "pending"} />
                   <EnvVar name="AI personalization" status={envStatus.anthropic ? "set" : "pending"} />
                   <EnvVar name="Scheduled reminders" status={envStatus.cronSecret ? "set" : "pending"} />
-                  <EnvVar
-                    name="SMS delivery"
-                    status={
-                      envStatus.twilioSid && envStatus.twilioToken && envStatus.twilioPhone
-                        ? "set"
-                        : smsEnabled
-                        ? "pending"
-                        : "optional"
-                    }
-                  />
                 </BlockStack>
               </BlockStack>
             </Card>
@@ -245,7 +197,7 @@ export default function SettingsPage() {
                   2. RevRemind schedules a reminder based on the product category interval.
                 </Text>
                 <Text variant="bodySm" as="p">
-                  3. Daily cron finds due reminders and sends email (and SMS if enabled).
+                  3. Daily cron finds due reminders and sends the reminder email.
                 </Text>
                 <Text variant="bodySm" as="p">
                   4. Message content is personalized by Claude AI using the vehicle and product data.
