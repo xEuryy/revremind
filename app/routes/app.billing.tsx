@@ -76,7 +76,7 @@ export default function BillingPage() {
                   <BlockStack gap="100">
                     <Text variant="headingMd" as="h2">RevRemind</Text>
                     <Text variant="headingXl" as="p">
-                      $49<Text as="span" variant="bodyMd" tone="subdued"> / month</Text>
+                      $24<Text as="span" variant="bodyMd" tone="subdued"> / month</Text>
                     </Text>
                   </BlockStack>
                   {hasActivePayment
